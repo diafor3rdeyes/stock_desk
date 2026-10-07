@@ -34,8 +34,9 @@ export function symbolCandidates(input) {
   return [s];
 }
 
-export async function yahooChart(symbol, range = '1y', interval = '1d') {
-  const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?range=${range}&interval=${interval}&includePrePost=false`;
+export async function yahooChart(symbol, range = '1y', interval = '1d', period = null) {
+  const span = period ? `period1=${period.p1}&period2=${period.p2}` : `range=${range}`;
+  const path = `/v8/finance/chart/${encodeURIComponent(symbol)}?${span}&interval=${interval}&includePrePost=false`;
   let lastErr;
   for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
     try {
