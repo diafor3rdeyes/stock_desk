@@ -8,7 +8,7 @@ export async function onRequestGet({ request }) {
   const u = new URL(request.url);
   const symbol = (u.searchParams.get('symbol') || '').trim().toUpperCase();
   const date = u.searchParams.get('date') || '';
-  if (!/^[A-Z0-9.\-^]{1,16}$/.test(symbol)) return json({ error: '종목 코드가 올바르지 않습니다.' }, 400);
+  if (!/^[A-Z0-9.\-^=]{1,16}$/.test(symbol)) return json({ error: '종목 코드가 올바르지 않습니다.' }, 400);
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return json({ error: '날짜가 올바르지 않습니다.' }, 400);
   const t = Math.floor(Date.parse(date + 'T00:00:00Z') / 1000);
   if (!Number.isFinite(t)) return json({ error: '날짜가 올바르지 않습니다.' }, 400);
