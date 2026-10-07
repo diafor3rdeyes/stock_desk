@@ -737,96 +737,113 @@ function newReport(s){ return { stock:s, ai:{}, status:{}, err:{}, conclusion:nu
 function isActive(rep){ return state.active===rep.stock.symbol && state.reports[rep.stock.symbol]===rep; }
 function idleBox(){ return '<div class="card"><p class="muted">AI 분석을 아직 실행하지 않았습니다. 웹 검색이 포함돼 호출 비용이 들어서, 저장된 종목은 누르기 전에는 돌리지 않습니다.</p><p style="margin-top:10px"><button class="btn ghost" data-act="runall" type="button">AI 분석 실행</button></p></div>'; }
 
-/* ---------- 매수 기록 · 수익률 ---------- */
+/* ---------- 매수 기록 · 수익률 (금액은 항상 원화, 해외주식은 환율 반영) ---------- */
 var POS_KEY='sd_pos';
-state.pos={};
+state.pos={}; state.fxNow={};
 try{ var _p=JSON.parse(lsGet(POS_KEY)||'{}'); if(_p&&typeof _p==='object'&&!Array.isArray(_p)) state.pos=_p; }catch(e){}
 function savePos(){ lsSet(POS_KEY, JSON.stringify(state.pos,function(k,v){ return k==='loading'?undefined:v; })); }
 function todayStr(){ var d=new Date(Date.now()+9*3600*1000); return d.toISOString().slice(0,10); }
 function parseAmt(v){ var n=parseFloat(String(v||'').replace(/[^0-9.]/g,'')); return isFinite(n)&&n>0?n:null; }
-function lotUnit(l){ return isNum(l.unit)&&l.unit>0?l.unit:(isNum(l.px)&&l.px>0?l.px:null); }
-function calcLot(l,cur){
-  var u=lotUnit(l); if(!u||!isNum(cur)) return null;
-  var sh=l.amount/u, val=sh*cur;
-  return { sh:sh, val:val, pl:val-l.amount, ret:(val/l.amount-1)*100 };
+function won(v){ return isNum(v)?nf(Math.round(v),0)+'원':'–'; }
+function swon(v){ return isNum(v)?(v>0?'+':'')+nf(Math.round(v),0)+'원':'–'; }
+function fxPair(ccy){ return ccy==='USD'?'KRW=X':ccy+'KRW=X'; }
+function isFor(ccy){ return !!ccy&&ccy!=='KRW'; }
+function lotReady(l,ccy){ return (l.qty>0||isNum(l.px))&&(!isFor(ccy)||isNum(l.fx)); }
+function calcLot(l,price,ccy){
+  if(!lotReady(l,ccy)||!isNum(price)) return null;
+  var f=isFor(ccy), now=1;
+  if(f){ now=state.fxNow[ccy]; if(!isNum(now)) return null; }
+  var sh=l.qty>0?l.qty:(f?l.amount/l.fx/l.px:l.amount/l.px);
+  var val=sh*price*now;
+  return { sh:sh, val:val, pl:val-l.amount, ret:(val/l.amount-1)*100, unit:l.amount/sh/(f?l.fx:1) };
 }
-function calcPos(sym,cur){
-  var lots=state.pos[sym]||[], o={n:lots.length,pend:0,amt:0,sh:0,val:0}, i;
+function calcPos(sym,price,ccy){
+  var lots=state.pos[sym]||[], o={n:lots.length,pend:0,amt:0,sh:0,val:0,nat:0}, i;
   for(i=0;i<lots.length;i++){
-    var c=calcLot(lots[i],cur); if(!c){ o.pend++; continue; }
-    o.amt+=lots[i].amount; o.sh+=c.sh; o.val+=c.val;
+    var c=calcLot(lots[i],price,ccy); if(!c){ o.pend++; continue; }
+    o.amt+=lots[i].amount; o.sh+=c.sh; o.val+=c.val; o.nat+=c.unit*c.sh;
   }
-  o.pl=o.val-o.amt; o.ret=o.amt?(o.val/o.amt-1)*100:null; o.avg=o.sh?o.amt/o.sh:null;
+  o.pl=o.val-o.amt; o.ret=o.amt?(o.val/o.amt-1)*100:null; o.avg=o.sh?o.nat/o.sh:null;
   return o;
 }
 function daysSince(d){ var a=Date.parse(d+'T00:00:00Z'), b=Date.parse(todayStr()+'T00:00:00Z'); return Math.max(0,Math.round((b-a)/86400000)); }
 
 function renderPosition(rep){
   var box=$('#box-pos'); if(!box||!isActive(rep)) return;
-  var s=rep.stock, cur=s.currency, sym=s.symbol, lots=state.pos[sym]||[];
+  var s=rep.stock, cur=s.currency, sym=s.symbol, f=isFor(cur);
+  if(state.pos[sym]){ var kept=state.pos[sym].filter(function(l){ return l.k===2; }); if(kept.length!==state.pos[sym].length){ if(kept.length) state.pos[sym]=kept; else delete state.pos[sym]; savePos(); } }
+  var lots=state.pos[sym]||[];
   var keep={ d:($('#posDate')||{}).value, a:($('#posAmt')||{}).value, u:($('#posUnit')||{}).value };
-  var t=calcPos(sym,s.price), h='';
+  var t=calcPos(sym,s.price,cur), h='';
   if(lots.length){
     h+='<div class="pos-sum">'+
-      '<div class="big"><div class="k">수익률</div><div class="v num '+dir(t.ret)+'">'+(t.ret==null?'–':arrow(t.ret)+' '+signed(t.ret,2)+'%')+'</div></div>'+
-      '<div><div class="k">평가손익</div><div class="v num '+dir(t.pl)+'">'+(t.amt?signed(cur==='KRW'?Math.round(t.pl):t.pl,cur==='KRW'?0:2)+(cur==='KRW'?'원':''):'–')+'</div></div>'+
-      '<div><div class="k">총 매수금액</div><div class="v num">'+money(t.amt,cur)+'</div></div>'+
-      '<div><div class="k">평가금액</div><div class="v num">'+(t.amt?money(t.val,cur):'–')+'</div></div>'+
+      '<div class="big"><div class="k">수익률</div><div class="v num '+dir(t.ret)+'">'+(t.ret==null||!t.amt?'–':arrow(t.ret)+' '+signed(t.ret,2)+'%')+'</div></div>'+
+      '<div><div class="k">평가손익</div><div class="v num '+dir(t.pl)+'">'+(t.amt?swon(t.pl):'–')+'</div></div>'+
+      '<div><div class="k">총 매수금액</div><div class="v num">'+won(state.pos[sym].reduce(function(a,l){return a+l.amount;},0))+'</div></div>'+
+      '<div><div class="k">평가금액</div><div class="v num">'+(t.amt?won(t.val):'–')+'</div></div>'+
       '<div><div class="k">평균 매수단가</div><div class="v num">'+(t.avg?money(t.avg,cur):'–')+'</div></div>'+
       '<div><div class="k">보유 수량</div><div class="v num">'+(t.sh?nf(t.sh,t.sh<100?4:2):'–')+'</div></div></div>';
-    if(t.pend) h+='<p class="muted small" style="margin:-6px 0 12px">매수일 종가를 아직 못 가져온 건이 '+t.pend+'개 있어 합계에서 빠져 있습니다.</p>';
-    h+='<div class="tblwrap"><table style="min-width:640px"><thead><tr><th>매수일</th><th>매수금액</th><th>매수단가</th><th>수량</th><th>평가금액</th><th>손익</th><th>수익률</th><th></th></tr></thead><tbody>';
+    if(t.pend) h+='<p class="muted small" style="margin:-6px 0 12px">시세·환율을 아직 못 가져온 건이 '+t.pend+'개 있어 합계에서 빠져 있습니다.</p>';
+    if(f) h+='<p class="muted small" style="margin:-6px 0 12px">해외주식은 매수일 환율과 현재 환율('+(isNum(state.fxNow[cur])?nf(state.fxNow[cur],2)+'원':'조회 중')+')을 반영한 원화 기준 수익률입니다.</p>';
+    h+='<div class="tblwrap"><table style="min-width:680px"><thead><tr><th>매수일</th><th>매수금액</th><th>매수단가</th><th>수량</th><th>평가금액</th><th>손익</th><th>수익률</th><th></th></tr></thead><tbody>';
     lots.forEach(function(l){
-      var c=calcLot(l,s.price), u=lotUnit(l), note;
-      if(l.loading) note='<span class="muted small">종가 조회 중…</span>';
-      else if(!u) note='<span class="muted small">'+esc(l.pxErr||'종가 없음')+' <button class="btn ghost" type="button" data-act="lotretry" data-id="'+esc(l.id)+'" style="padding:2px 10px;font-size:12px">재시도</button></span>';
-      h+='<tr><td class="num">'+esc(l.date)+'<div class="muted small">'+daysSince(l.date)+'일 전'+(l.pxDate&&l.pxDate!==l.date&&!(isNum(l.unit)&&l.unit>0)?' · '+esc(l.pxDate)+' 종가 기준':'')+'</div></td>'+
-        '<td class="num">'+money(l.amount,cur)+'</td>'+
-        '<td class="num">'+(u?money(u,cur)+'<div class="muted small">'+(isNum(l.unit)&&l.unit>0?'수량 기준':'종가')+'</div>':(note||'–'))+'</td>'+
+      var c=calcLot(l,s.price,cur), note='';
+      if(l.loading) note='<span class="muted small">시세 조회 중…</span>';
+      else if(!c&&!lotReady(l,cur)) note='<span class="muted small">'+esc(l.pxErr||'조회 실패')+' <button class="btn ghost" type="button" data-act="lotretry" data-id="'+esc(l.id)+'" style="padding:2px 10px;font-size:12px">재시도</button></span>';
+      h+='<tr><td class="num">'+esc(l.date)+'<div class="muted small">'+daysSince(l.date)+'일 전'+(l.pxDate&&l.pxDate!==l.date&&!(l.qty>0)?' · '+esc(l.pxDate)+' 종가 기준':'')+'</div></td>'+
+        '<td class="num">'+won(l.amount)+(f&&isNum(l.fx)?'<div class="muted small">환율 '+nf(l.fx,2)+'</div>':'')+'</td>'+
+        '<td class="num">'+(c?money(c.unit,cur)+'<div class="muted small">'+(l.qty>0?'수량 기준':'종가')+'</div>':(note||'–'))+'</td>'+
         '<td class="num">'+(c?nf(c.sh,c.sh<100?4:2):'–')+'</td>'+
-        '<td class="num">'+(c?money(c.val,cur):'–')+'</td>'+
-        '<td class="num '+(c?dir(c.pl):'')+'">'+(c?signed(cur==='KRW'?Math.round(c.pl):c.pl,cur==='KRW'?0:2):'–')+'</td>'+
+        '<td class="num">'+(c?won(c.val):'–')+'</td>'+
+        '<td class="num '+(c?dir(c.pl):'')+'">'+(c?swon(c.pl):'–')+'</td>'+
         '<td class="num '+(c?dir(c.ret):'')+'"><b>'+(c?arrow(c.ret)+' '+signed(c.ret,2)+'%':'–')+'</b></td>'+
         '<td><button class="lotx" type="button" data-act="lotdel" data-id="'+esc(l.id)+'" aria-label="삭제">×</button></td></tr>';
     });
     h+='</tbody></table></div>';
-  } else h+='<p class="muted" style="margin:0">아직 기록이 없습니다. 아래에 매수한 날짜와 금액을 넣으면 그날 종가를 기준으로 현재 수익률을 계산합니다.</p>';
+  } else h+='<p class="muted" style="margin:0">아직 기록이 없습니다. 아래에 매수한 날짜와 원화 금액을 넣으면 그날 종가'+(f?'와 환율':'')+'를 기준으로 현재 수익률을 계산합니다.</p>';
   h+='<form class="pos-form" id="posForm" novalidate>'+
     '<label>매수 날짜<input type="date" id="posDate" max="'+todayStr()+'" value="'+esc(keep.d||'')+'"></label>'+
-    '<label>매수 금액 ('+esc(cur==='KRW'?'원':cur||'')+')<input type="text" inputmode="decimal" id="posAmt" placeholder="'+(cur==='KRW'?'예: 1000000':'예: 1000')+'" value="'+esc(keep.a||'')+'"></label>'+
+    '<label>매수 금액 (원)<input type="text" inputmode="decimal" id="posAmt" placeholder="예: 1000000" value="'+esc(keep.a||'')+'"></label>'+
     '<label>매수 수량 (선택)<input type="text" inputmode="decimal" id="posUnit" placeholder="비우면 그날 종가로 계산" value="'+esc(keep.u||'')+'"></label>'+
     '<button class="btn" type="submit">기록 추가</button></form>'+
     '<div id="posErr"></div>'+
-    '<p class="muted small" style="margin:10px 0 0">날짜가 주말·휴장일이면 그다음 거래일 종가를 씁니다. 실제 체결가·수수료·환율은 반영되지 않는 참고용 계산입니다.</p>';
+    '<p class="muted small" style="margin:10px 0 0">날짜가 주말·휴장일이면 그다음 거래일 종가를 씁니다. 실제 체결가·수수료는 반영되지 않는 참고용 계산입니다.</p>';
   box.innerHTML='<div class="card">'+h+'</div>';
 }
 
+function fetchPx(symbol,date){
+  return fetch('/api/price?symbol='+encodeURIComponent(symbol)+'&date='+encodeURIComponent(date)).then(function(r){
+    return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||'시세 조회 실패'); return j; });
+  });
+}
 function resolveLot(rep, l){
-  var sym=rep.stock.symbol;
-  if(isNum(l.unit)&&l.unit>0){ return Promise.resolve(); }
+  var sym=rep.stock.symbol, ccy=rep.stock.currency, jobs=[];
+  if(lotReady(l,ccy)) return Promise.resolve();
   l.loading=true; l.pxErr=null; renderPosition(rep);
-  return fetch('/api/price?symbol='+encodeURIComponent(sym)+'&date='+encodeURIComponent(l.date)).then(function(r){
-    return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||'종가 조회 실패'); return j; });
-  }).then(function(j){
-    l.px=j.close; l.pxDate=j.date; l.pxErr=null;
-    if(j.future) l.pxErr='미래 날짜입니다';
-  }, function(e){ l.pxErr=(e&&e.message)||'종가 조회 실패'; })
-  .then(function(){ l.loading=false; savePos(); renderPosition(rep); renderList(); });
+  if(!(l.qty>0)&&!isNum(l.px)) jobs.push(fetchPx(sym,l.date).then(function(j){ l.px=j.close; l.pxDate=j.date; }));
+  if(isFor(ccy)&&!isNum(l.fx)) jobs.push(fetchPx(fxPair(ccy),l.date).then(function(j){ l.fx=j.close; }).catch(function(e){ throw new Error('환율 조회 실패: '+((e&&e.message)||'')); }));
+  return Promise.all(jobs).then(function(){}, function(e){ l.pxErr=(e&&e.message)||'조회 실패'; })
+    .then(function(){ l.loading=false; savePos(); renderPosition(rep); renderList(); });
+}
+function ensureFxNow(rep){
+  var ccy=rep.stock.currency; if(!isFor(ccy)||isNum(state.fxNow[ccy])) return;
+  fetchPx(fxPair(ccy),todayStr()).then(function(j){ state.fxNow[ccy]=j.close; renderPosition(rep); renderList(); }, function(){});
 }
 function resolvePending(rep){
-  (state.pos[rep.stock.symbol]||[]).forEach(function(l){ if(!lotUnit(l)&&!l.loading&&!l.pxErr) resolveLot(rep,l); });
+  ensureFxNow(rep);
+  (state.pos[rep.stock.symbol]||[]).forEach(function(l){ if(!lotReady(l,rep.stock.currency)&&!l.loading&&!l.pxErr) resolveLot(rep,l); });
 }
 function addLot(rep){
-  var err=$('#posErr'), date=$('#posDate').value, amt=parseAmt($('#posAmt').value), unitRaw=$('#posUnit').value.trim(), qty=unitRaw?parseAmt(unitRaw):null, unit=qty?amt/qty:null;
+  var err=$('#posErr'), date=$('#posDate').value, amt=parseAmt($('#posAmt').value), qRaw=$('#posUnit').value.trim(), qty=qRaw?parseAmt(qRaw):null;
   var msg='';
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) msg='매수 날짜를 선택해 주세요.';
   else if(date>todayStr()) msg='오늘 이후 날짜는 기록할 수 없습니다.';
-  else if(!amt) msg='매수 금액을 숫자로 입력해 주세요.';
-  else if(unitRaw&&!qty) msg='매수 수량은 숫자로 입력하거나 비워 주세요.';
+  else if(!amt) msg='매수 금액(원)을 숫자로 입력해 주세요.';
+  else if(qRaw&&!qty) msg='매수 수량은 숫자로 입력하거나 비워 주세요.';
   if(msg){ err.innerHTML='<div class="err">'+esc(msg)+'</div>'; return; }
   var sym=rep.stock.symbol, lots=(state.pos[sym]=state.pos[sym]||[]);
   if(lots.length>=50){ err.innerHTML='<div class="err">종목당 최대 50건까지 기록할 수 있습니다.</div>'; return; }
-  var l={ id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:date, amount:amt, unit:unit };
+  var l={ id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), k:2, date:date, amount:amt, qty:qty };
   lots.push(l); lots.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
   savePos();
   $('#posAmt').value=''; $('#posUnit').value='';
@@ -837,7 +854,7 @@ function addLot(rep){
 function rowHtml(sym){
   var r=state.reports[sym], s=r&&r.stock, on=sym===state.active;
   var myPill='';
-  if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price); if(pt.ret!=null) myPill='<span class="pill '+(pt.ret>0?'good':pt.ret<0?'bad':'neutral')+'">내 수익 '+signed(pt.ret,1)+'%</span>'; }
+  if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price,s.currency); if(pt.ret!=null&&pt.amt) myPill='<span class="pill '+(pt.ret>0?'good':pt.ret<0?'bad':'neutral')+'">내 수익 '+signed(pt.ret,1)+'%</span>'; }
   var code=sym.replace(/\.(KS|KQ)$/,'');
   var busy=r&&(PARTS.some(function(p){ return r.status[p]==='loading'; })||r.cStatus==='loading');
   var closes=s?s.rows.slice(-40).map(function(x){ return x.c; }):[];
