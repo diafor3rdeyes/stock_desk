@@ -12,7 +12,7 @@ const TTL = { company: 43200, news: 1800, outlook: 1800, conclusion: 0 };
 
 const SYSTEM = (today) =>
   `당신은 개인 투자자를 돕는 리서치 애널리스트입니다. 오늘 날짜는 ${today}(KST)입니다.
-- 반드시 한국어로 쓰고, 최종 출력은 지정한 JSON 객체 하나만 내보냅니다. 코드펜스나 설명 문장은 붙이지 않습니다.
+- 반드시 한국어로 씁니다. 조사를 마치면 최종 결과를 submit_report 도구의 입력으로 제출합니다. 입력의 최상위 키는 요청에 적힌 JSON 형식의 키와 같아야 하고, 결과를 글로 출력하지 않습니다.
 - 웹 검색으로 최신 공시·실적·뉴스·애널리스트 의견을 확인한 뒤 작성합니다. 검색으로 확인하지 못한 수치는 지어내지 말고 null로 두고 note에 이유를 적습니다.
 - 수치에는 기준 기간(예: FY2025, 2026년 2분기)과 통화 단위를 함께 적습니다.
 - 투자 권유가 아니라 참고용 분석입니다. 근거가 약하면 확신도를 낮게 표시합니다.`;
@@ -121,12 +121,37 @@ function prompts(part, b) {
   return null;
 }
 
+const SUBMIT_TOOL = {
+  name: 'submit_report',
+  description:
+    '조사를 마친 뒤 최종 결과를 이 도구의 입력으로 제출합니다. 입력의 최상위 키는 요청에 적힌 JSON 형식의 키와 같아야 합니다.',
+  input_schema: { type: 'object', additionalProperties: true },
+};
+
+function extractJson(text) {
+  const a = text.indexOf('{');
+  const b = text.lastIndexOf('}');
+  if (a < 0 || b <= a) throw new Error('분석 결과를 해석하지 못했습니다.');
+  const raw = text.slice(a, b + 1);
+  try {
+    return JSON.parse(raw);
+  } catch (e) {
+    // 흔한 오류(끝 쉼표, 따옴표 모양)만 고쳐 한 번 더 시도
+    const fixed = raw
+      .replace(/[“”]/g, '"')
+      .replace(/,\s*([}\]])/g, '$1');
+    return JSON.parse(fixed);
+  }
+}
+
+// 결과는 submit_report 도구 입력(API가 JSON 문법을 보장)으로 받는다. 안 쓰면 본문에서 JSON을 찾고, 그것도 안 되면 제출을 강제한다.
 async function callClaude(env, { user, searches, maxTokens }, today) {
   const messages = [{ role: 'user', content: user }];
-  const tools = searches
-    ? [{ type: env.WEB_SEARCH_TOOL || 'web_search_20250305', name: 'web_search', max_uses: searches }]
-    : undefined;
-  for (let turn = 0; turn < 4; turn++) {
+  const tools = [];
+  if (searches) tools.push({ type: env.WEB_SEARCH_TOOL || 'web_search_20250305', name: 'web_search', max_uses: searches });
+  tools.push(SUBMIT_TOOL);
+  let force = !searches; // 검색이 없는 결론 단계는 처음부터 제출을 강제
+  for (let turn = 0; turn < 5; turn++) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
@@ -139,7 +164,8 @@ async function callClaude(env, { user, searches, maxTokens }, today) {
         max_tokens: maxTokens,
         system: SYSTEM(today),
         messages,
-        ...(tools ? { tools } : {}),
+        tools,
+        ...(force ? { tool_choice: { type: 'tool', name: 'submit_report' } } : {}),
       }),
     });
     if (!res.ok) {
@@ -148,23 +174,25 @@ async function callClaude(env, { user, searches, maxTokens }, today) {
     }
     const data = await res.json();
     const blocks = data.content || [];
+
+    const sub = blocks.find((b) => b.type === 'tool_use' && b.name === 'submit_report');
+    if (sub && sub.input && typeof sub.input === 'object') return sub.input;
+
     if (data.stop_reason === 'pause_turn') {
       messages.push({ role: 'assistant', content: blocks });
       continue;
     }
-    return blocks
-      .filter((b) => b.type === 'text')
-      .map((b) => b.text)
-      .join('');
-  }
-  throw new Error('분석이 시간 안에 끝나지 않았습니다. 다시 시도해 주세요.');
-}
 
-function extractJson(text) {
-  const a = text.indexOf('{');
-  const b = text.lastIndexOf('}');
-  if (a < 0 || b <= a) throw new Error('분석 결과를 해석하지 못했습니다.');
-  return JSON.parse(text.slice(a, b + 1));
+    const text = blocks.filter((b) => b.type === 'text').map((b) => b.text).join('');
+    try {
+      return extractJson(text);
+    } catch (e) {
+      messages.push({ role: 'assistant', content: blocks.length ? blocks : [{ type: 'text', text: '(검색 완료)' }] });
+      messages.push({ role: 'user', content: '조사한 내용을 요청한 형식 그대로 submit_report 도구로 제출해 주세요.' });
+      force = true;
+    }
+  }
+  throw new Error('분석 결과를 받지 못했습니다. 다시 시도해 주세요.');
 }
 
 export async function onRequestPost(context) {
@@ -201,8 +229,8 @@ export async function onRequestPost(context) {
     const beat = setInterval(() => writer.write(enc.encode(' ')).catch(() => {}), 8000);
     let out;
     try {
-      const text = await callClaude(env, spec, today);
-      out = JSON.stringify({ ok: true, data: extractJson(text), generatedAt: Date.now() });
+      const data = await callClaude(env, spec, today);
+      out = JSON.stringify({ ok: true, data, generatedAt: Date.now() });
       if (ttl) {
         waitUntil(
           caches.default.put(
