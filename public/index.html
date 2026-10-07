@@ -782,7 +782,7 @@ function renderPosition(rep){
       else if(!u) note='<span class="muted small">'+esc(l.pxErr||'종가 없음')+' <button class="btn ghost" type="button" data-act="lotretry" data-id="'+esc(l.id)+'" style="padding:2px 10px;font-size:12px">재시도</button></span>';
       h+='<tr><td class="num">'+esc(l.date)+'<div class="muted small">'+daysSince(l.date)+'일 전'+(l.pxDate&&l.pxDate!==l.date&&!(isNum(l.unit)&&l.unit>0)?' · '+esc(l.pxDate)+' 종가 기준':'')+'</div></td>'+
         '<td class="num">'+money(l.amount,cur)+'</td>'+
-        '<td class="num">'+(u?money(u,cur)+'<div class="muted small">'+(isNum(l.unit)&&l.unit>0?'직접입력':'종가')+'</div>':(note||'–'))+'</td>'+
+        '<td class="num">'+(u?money(u,cur)+'<div class="muted small">'+(isNum(l.unit)&&l.unit>0?'수량 기준':'종가')+'</div>':(note||'–'))+'</td>'+
         '<td class="num">'+(c?nf(c.sh,c.sh<100?4:2):'–')+'</td>'+
         '<td class="num">'+(c?money(c.val,cur):'–')+'</td>'+
         '<td class="num '+(c?dir(c.pl):'')+'">'+(c?signed(cur==='KRW'?Math.round(c.pl):c.pl,cur==='KRW'?0:2):'–')+'</td>'+
@@ -794,7 +794,7 @@ function renderPosition(rep){
   h+='<form class="pos-form" id="posForm" novalidate>'+
     '<label>매수 날짜<input type="date" id="posDate" max="'+todayStr()+'" value="'+esc(keep.d||'')+'"></label>'+
     '<label>매수 금액 ('+esc(cur==='KRW'?'원':cur||'')+')<input type="text" inputmode="decimal" id="posAmt" placeholder="'+(cur==='KRW'?'예: 1000000':'예: 1000')+'" value="'+esc(keep.a||'')+'"></label>'+
-    '<label>매수 단가 (선택)<input type="text" inputmode="decimal" id="posUnit" placeholder="비우면 그날 종가" value="'+esc(keep.u||'')+'"></label>'+
+    '<label>매수 수량 (선택)<input type="text" inputmode="decimal" id="posUnit" placeholder="비우면 그날 종가로 계산" value="'+esc(keep.u||'')+'"></label>'+
     '<button class="btn" type="submit">기록 추가</button></form>'+
     '<div id="posErr"></div>'+
     '<p class="muted small" style="margin:10px 0 0">날짜가 주말·휴장일이면 그다음 거래일 종가를 씁니다. 실제 체결가·수수료·환율은 반영되지 않는 참고용 계산입니다.</p>';
@@ -817,12 +817,12 @@ function resolvePending(rep){
   (state.pos[rep.stock.symbol]||[]).forEach(function(l){ if(!lotUnit(l)&&!l.loading&&!l.pxErr) resolveLot(rep,l); });
 }
 function addLot(rep){
-  var err=$('#posErr'), date=$('#posDate').value, amt=parseAmt($('#posAmt').value), unitRaw=$('#posUnit').value.trim(), unit=unitRaw?parseAmt(unitRaw):null;
+  var err=$('#posErr'), date=$('#posDate').value, amt=parseAmt($('#posAmt').value), unitRaw=$('#posUnit').value.trim(), qty=unitRaw?parseAmt(unitRaw):null, unit=qty?amt/qty:null;
   var msg='';
   if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) msg='매수 날짜를 선택해 주세요.';
   else if(date>todayStr()) msg='오늘 이후 날짜는 기록할 수 없습니다.';
   else if(!amt) msg='매수 금액을 숫자로 입력해 주세요.';
-  else if(unitRaw&&!unit) msg='매수 단가는 숫자로 입력하거나 비워 주세요.';
+  else if(unitRaw&&!qty) msg='매수 수량은 숫자로 입력하거나 비워 주세요.';
   if(msg){ err.innerHTML='<div class="err">'+esc(msg)+'</div>'; return; }
   var sym=rep.stock.symbol, lots=(state.pos[sym]=state.pos[sym]||[]);
   if(lots.length>=50){ err.innerHTML='<div class="err">종목당 최대 50건까지 기록할 수 있습니다.</div>'; return; }
