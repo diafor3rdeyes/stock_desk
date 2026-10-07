@@ -14,6 +14,22 @@ export default {
     const url = new URL(request.url);
     const context = { request, env, waitUntil: (p) => ctx.waitUntil(p) };
 
+    // 설정 점검용: 비밀값 자체는 내보내지 않고 존재 여부만 알려준다
+    if (url.pathname === '/api/health') {
+      const meta = env.CF_VERSION_METADATA || {};
+      return new Response(
+        JSON.stringify({
+          ok: true,
+          hasApiKey: !!(env.ANTHROPIC_API_KEY && String(env.ANTHROPIC_API_KEY).trim()),
+          hasAccessCode: !!(env.ACCESS_CODE && String(env.ACCESS_CODE).trim()),
+          envNames: Object.keys(env).filter((k) => k !== 'ASSETS' && k !== 'CF_VERSION_METADATA'),
+          version: meta.id || null,
+          versionTime: meta.timestamp || null,
+        }),
+        { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } }
+      );
+    }
+
     try {
       if (url.pathname === '/api/market' && request.method === 'GET') return await market.onRequestGet(context);
       if (url.pathname === '/api/stock' && request.method === 'GET') return await stock.onRequestGet(context);
