@@ -443,15 +443,15 @@ function skeleton(s){
 
   '<div class="step" id="sec-pos"><div class="step-h"><h2>내 수익률</h2><span class="tag">매수일·매입가·수량을 적으면 자동 계산 · 이 기기에만 저장</span></div><div id="box-pos"></div></div>'+
 
-  '<div class="step" id="sec-company"><div class="step-h"><h2>1. 기업 요약</h2><span class="tag">사업 구조와 부문별 매출·이익</span></div><div id="box-company">'+loadingBox('기업 정보와 최신 실적을 검색하는 중… (보통 20~60초)')+'</div></div>'+
+  '<div class="step" id="sec-company"><div class="step-h"><h2>1. 기업 요약</h2><span class="tag">사업 구조와 부문별 매출·이익</span></div><div id="box-company">'+loadingBox('기업 정보를 정리하는 중… (보통 5~15초)')+'</div></div>'+
 
-  '<div class="step" id="sec-news"><div class="step-h"><h2>2. 최근 뉴스와 주가 영향</h2><span class="tag">한 달 안팎 기사를 모아 판단</span></div><div id="box-news">'+loadingBox('최근 뉴스를 검색하는 중… (보통 30~70초)')+'</div></div>'+
+  '<div class="step" id="sec-news"><div class="step-h"><h2>2. 최근 뉴스와 주가 영향</h2><span class="tag">한 달 안팎 기사를 모아 판단</span></div><div id="box-news">'+loadingBox('최근 뉴스를 정리하는 중… (보통 5~15초)')+'</div></div>'+
 
   '<div class="step" id="sec-chart"><div class="step-h"><h2>3. 차트 · 2주 전망 · 매도 전략</h2><span class="tag">일봉 기준</span></div>'+
     '<div class="card chartcard"><div class="chartwrap" id="chartHost"></div>'+
     '<div class="legend"><span><i style="border-color:var(--accent)"></i>20일선</span><span><i style="border-color:var(--flat)"></i>50일선</span><span><i class="band"></i>2주 통계적 변동폭(±1σ/±2σ)</span><span><i class="dash" style="border-color:var(--up)"></i>저항선</span><span><i class="dash" style="border-color:var(--down)"></i>지지선</span></div></div>'+
     '<div class="card"><h3>기술적 지표</h3><div id="indBox"></div></div>'+
-    '<div id="box-outlook">'+loadingBox('애널리스트 전망과 2주 시나리오를 정리하는 중… (보통 30~70초)')+'</div></div>'+
+    '<div id="box-outlook">'+loadingBox('2주 시나리오를 정리하는 중… (보통 5~15초)')+'</div></div>'+
 
   '<div class="step" id="sec-conclusion"><div class="step-h"><h2>4. 최종 결론</h2><span class="tag">앞의 세 항목을 종합</span></div><div id="box-conclusion"><div class="card"><p class="muted">위 분석이 끝나면 종합 결론을 정리합니다.</p></div></div></div>';
 }
@@ -731,11 +731,11 @@ function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 function saveWatch(){ lsSet(WATCH_KEY, JSON.stringify(state.order)); lsSet(ACTIVE_KEY, state.active||''); }
 
 var RENDER={ company:function(d){ renderCompany(d); }, news:function(d){ renderNews(d); }, outlook:function(d,rep){ renderOutlook(d, rep.stock); } };
-var LOAD_MSG={ company:'기업 정보와 최신 실적을 검색하는 중… (보통 20~60초)', news:'최근 뉴스를 검색하는 중… (보통 30~70초)', outlook:'애널리스트 전망과 2주 시나리오를 정리하는 중… (보통 30~70초)' };
+var LOAD_MSG={ company:'기업 정보를 정리하는 중… (보통 5~15초)', news:'최근 뉴스를 정리하는 중… (보통 5~15초)', outlook:'2주 시나리오를 정리하는 중… (보통 5~15초)' };
 
 function newReport(s){ return { stock:s, ai:{}, status:{}, err:{}, conclusion:null, cStatus:null, cErr:null }; }
 function isActive(rep){ return state.active===rep.stock.symbol && state.reports[rep.stock.symbol]===rep; }
-function idleBox(){ return '<div class="card"><p class="muted">AI 분석을 아직 실행하지 않았습니다. 웹 검색이 포함돼 호출 비용이 들어서, 저장된 종목은 누르기 전에는 돌리지 않습니다.</p><p style="margin-top:10px"><button class="btn ghost" data-act="runall" type="button">AI 분석 실행</button></p></div>'; }
+function idleBox(){ return '<div class="card"><p class="muted">AI 분석을 아직 실행하지 않았습니다. AI 호출 비용이 들어서, 저장된 종목은 누르기 전에는 돌리지 않습니다.</p><p style="margin-top:10px"><button class="btn ghost" data-act="runall" type="button">AI 분석 실행</button></p></div>'; }
 
 /* ---------- 매수 기록 · 수익률 (매입가=1주당 원화 가격 × 수량, 해외주식은 현재 환율 반영) ---------- */
 var POS_KEY='sd_pos';
@@ -937,18 +937,32 @@ function buildDigest(rep){
   };
 }
 
+/* 최종 결론은 AI를 또 부르지 않고(비용 0원) 위 세 항목 결과로 화면에서 직접 정리한다 */
+function localConclusion(rep){
+  var s=rep.stock, t=s.tech, c=rep.ai.company, n=rep.ai.news, o=rep.ai.outlook;
+  var sc=0, bullets=[], risks=[], cats=[];
+  if(t.bias==='강세'){ sc++; } else if(t.bias==='약세'){ sc--; }
+  (t.biasReasons||[]).slice(0,3).forEach(function(r){ bullets.push('차트: '+r); });
+  if(isNum(t.rsi14)){ if(t.rsi14>=70){ sc--; risks.push('RSI '+nf(t.rsi14,0)+' — 단기간에 많이 올라 쉬어갈 수 있습니다.'); } else if(t.rsi14<=30){ sc++; bullets.push('RSI '+nf(t.rsi14,0)+' — 많이 떨어져 반등 가능성이 있습니다.'); } }
+  var ov=n&&n.overall;
+  if(ov){ if(ov.sentiment==='긍정') sc++; else if(ov.sentiment==='부정') sc--; if(ov.netImpact2w) bullets.push('뉴스: '+ov.netImpact2w); (ov.keyThemes||[]).slice(0,3).forEach(function(k){ cats.push(k); }); }
+  var f=o&&o.forecast;
+  if(f){ if(f.direction==='상승') sc++; else if(f.direction==='하락') sc--; var bear=f.scenarios&&f.scenarios.bear; if(bear&&bear.narrative) risks.push('약세 시나리오: '+bear.narrative); var bull=f.scenarios&&f.scenarios.bull; if(bull&&bull.narrative) cats.push(bull.narrative); }
+  var stance=sc>=3?'매수 우위':sc===2?'분할 매수 관심':sc>=-1?'관망':sc===-2?'비중 축소 고려':'매도 우위';
+  var L=(o&&o.levels)||{}, sp=L.sellPlan||{}, cur=s.currency;
+  var r1=(L.resistances||[])[0], s1=(L.supports||[])[0];
+  if(r1&&toNum(r1.price)!=null) risks.push('가까운 저항선 '+plain(toNum(r1.price),cur)+' 근처에서 막힐 수 있습니다.');
+  var plan=[]; if(s1&&toNum(s1.price)!=null) plan.push('지지선 '+plain(toNum(s1.price),cur)+' 아래로 내려가면 조심하세요.'); if(sp.target1&&toNum(sp.target1.price)!=null) plan.push('1차 목표가 '+plain(toNum(sp.target1.price),cur)+'에서 '+(sp.target1.action||'일부 매도')+'를 고려하세요.'); if(sp.timing) plan.push(sp.timing);
+  var parts=[]; if(c&&c.oneLine) parts.push(c.oneLine+'.'); if(ov&&ov.summary) parts.push(ov.summary); if(f&&f.rationale) parts.push(f.rationale);
+  return { stance:stance, score:Math.max(-5,Math.min(5,sc)), oneLine:'차트 '+(t.bias||'중립')+(ov?' · 뉴스 '+(ov.sentiment||'–'):'')+(f?' · 2주 전망 '+(f.direction||'–'):'')+' → '+stance,
+    summary:parts.join(' ')||'분석 결과가 부족해 차트 지표만으로 정리했습니다.', bullets:bullets.slice(0,5), risks:risks.slice(0,4), catalysts:cats.slice(0,4), actionPlan:plan.join(' ') };
+}
+
 function runConclusion(rep){
   var ok=PARTS.filter(function(p){return rep.status[p]==='ok';});
   if(!ok.length){ rep.cStatus='skip'; paintConclusion(rep); renderList(); return; }
-  rep.cStatus='loading'; paintConclusion(rep); renderList();
-  var payload=basePayload(rep.stock); payload.digest=buildDigest(rep);
-  callAI('conclusion',payload).then(function(d){
-    if(state.reports[rep.stock.symbol]!==rep) return;
-    rep.conclusion=d; rep.cStatus='ok'; paintConclusion(rep);
-  }).catch(function(e){
-    if(state.reports[rep.stock.symbol]!==rep) return;
-    rep.cStatus='error'; rep.cErr=e; paintConclusion(rep);
-  }).then(function(){ renderList(); });
+  try{ rep.conclusion=localConclusion(rep); rep.cStatus='ok'; }catch(e){ rep.cStatus='error'; rep.cErr=new Error('결론을 정리하지 못했습니다.'); }
+  paintConclusion(rep); renderList();
 }
 
 function allSettled(rep){ return PARTS.every(function(p){ return rep.status[p]==='ok'||rep.status[p]==='error'; }); }
