@@ -43,3 +43,5 @@ wrangler.toml              Cloudflare Pages 설정
 - 지수·시세는 Yahoo Finance 공개 데이터라 장중에는 지연될 수 있습니다. 공포탐욕지수는 CNN이 공개한 값을 그대로 가져옵니다. 두 서비스 모두 공식 API가 아니어서 형식이 바뀌면 `market.js`, `util.js`를 고쳐야 할 수 있습니다.
 - 종목 한 번 분석에 웹 검색이 포함된 Claude 호출이 4번 일어납니다. 사용량은 Anthropic 콘솔에서 확인하세요.
 - 투자 권유가 아닌 참고 자료입니다.
+
+- 글자하나
