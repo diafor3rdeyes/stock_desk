@@ -229,9 +229,9 @@ td.r,th.r{text-align:right}
   </section>
 
   <section class="lookup" aria-label="종목 검색">
-    <div class="sec-title"><h2>종목 분석</h2><span class="meta">추가할 때마다 아래 탭에 쌓입니다</span></div>
+    <div class="sec-title"><h2>종목 분석</h2><span class="meta">여러 종목을 쉼표로 넣으면 탭으로 쌓입니다</span></div>
     <form id="form" autocomplete="off">
-      <input id="sym" name="sym" inputmode="latin" placeholder="예: NVDA, AAPL, TSLA, 005930, 000660" aria-label="종목 코드" maxlength="14">
+      <input id="sym" name="sym" inputmode="latin" placeholder="예: NVDA, AAPL, 005930 (쉼표로 여러 개 한 번에)" aria-label="종목 코드" maxlength="120">
       <button class="btn" id="go" type="submit">종목 추가</button>
     </form>
     <div class="examples">예시
@@ -698,6 +698,7 @@ function paintPart(rep, p){
     try{ RENDER[p](rep.ai[p], rep); }catch(err){ box.innerHTML=errorBox(p,new Error('결과를 표시하지 못했습니다.')); }
   } else if(st==='error'){ box.innerHTML=errorBox(p, rep.err[p]); }
   else if(st==='loading'){ box.innerHTML=loadingBox(LOAD_MSG[p]); }
+  else if(st==='queued'){ box.innerHTML='<div class="card"><div class="loading"><span class="pulse"></span><span>앞 종목 분석이 끝나면 이어서 시작합니다…</span></div></div>'; }
   else box.innerHTML=idleBox();
 }
 function paintConclusion(rep){
@@ -789,24 +790,48 @@ function fetchStock(input){
   });
 }
 
+/* AI 분석은 종목 단위로 한 번에 하나씩 순서대로 돌린다 (동시 검색 제한·비용 보호) */
+var aiChain=Promise.resolve();
+function queueAI(rep){
+  PARTS.forEach(function(p){ rep.status[p]='queued'; delete rep.err[p]; });
+  rep.cStatus=null;
+  aiChain=aiChain.then(function(){
+    if(state.reports[rep.stock.symbol]!==rep) return;
+    if(!PARTS.every(function(p){ return rep.status[p]==='queued'; })) return;
+    return runAll(rep);
+  }).catch(function(){});
+}
+
 function analyze(raw){
-  var input=String(raw||'').trim();
   var errBox=$('#formErr'); errBox.innerHTML='';
-  if(!input){ errBox.innerHTML='<div class="err">종목 코드를 입력해 주세요.</div>'; return; }
+  var seen={};
+  var syms=String(raw||'').split(/[\s,，、;]+/).map(function(x){ return x.trim(); }).filter(function(x){
+    var k=x.toUpperCase(); if(!x||seen[k]) return false; seen[k]=1; return true;
+  }).slice(0,MAX_TABS);
+  if(!syms.length){ errBox.innerHTML='<div class="err">종목 코드를 입력해 주세요. 여러 개는 쉼표나 띄어쓰기로 구분합니다.</div>'; return; }
   var btn=$('#go'); btn.disabled=true; btn.textContent='불러오는 중…';
-  fetchStock(input).then(function(s){
-    var sym=s.symbol, rep=state.reports[sym];
-    if(rep){
-      rep.stock=s; show(sym);
-      if(PARTS.every(function(p){ return !rep.status[p]; })) runAll(rep);
-    } else {
-      rep=newReport(s); state.reports[sym]=rep; state.order.push(sym);
-      while(state.order.length>MAX_TABS){ delete state.reports[state.order.shift()]; }
-      show(sym); runAll(rep);
+  var failed=[], firstSym=null, todo=[], lastMsg='';
+  syms.reduce(function(chain,input){
+    return chain.then(function(){
+      return fetchStock(input).then(function(s){
+        var sym=s.symbol, rep=state.reports[sym];
+        if(rep){ rep.stock=s; if(PARTS.every(function(p){ return !rep.status[p]; })) todo.push(rep); }
+        else { rep=newReport(s); state.reports[sym]=rep; state.order.push(sym); todo.push(rep); }
+        if(!firstSym) firstSym=sym;
+      }, function(e){ failed.push(input); lastMsg=(e&&e.message)||''; });
+    });
+  }, Promise.resolve()).then(function(){
+    while(state.order.length>MAX_TABS){ var old=state.order.shift(); if(old===state.active) state.active=null; delete state.reports[old]; }
+    if(firstSym && state.reports[firstSym]){
+      todo.forEach(function(rep){ if(state.reports[rep.stock.symbol]===rep) queueAI(rep); });
+      show(firstSym);
+      $('#sym').value=failed.join(', ');
+      $('#report').scrollIntoView({behavior:'smooth',block:'start'});
     }
-    $('#sym').value='';
-    $('#report').scrollIntoView({behavior:'smooth',block:'start'});
-  }).catch(function(e){ errBox.innerHTML='<div class="err">'+esc(e.message||'종목을 불러오지 못했습니다.')+'</div>'; })
+    if(failed.length){
+      errBox.innerHTML='<div class="err">'+(syms.length===1?esc(lastMsg||'종목을 불러오지 못했습니다.'):'찾지 못한 종목: '+esc(failed.join(', '))+' — 코드를 다시 확인해 주세요.')+'</div>';
+    }
+  }).catch(function(e){ errBox.innerHTML='<div class="err">'+esc((e&&e.message)||'종목을 불러오지 못했습니다.')+'</div>'; })
     .then(function(){ btn.disabled=false; btn.textContent='종목 추가'; });
 }
 
