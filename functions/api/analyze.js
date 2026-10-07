@@ -4,101 +4,93 @@
 // 환경변수
 //   ANTHROPIC_API_KEY  (필수)
 //   ACCESS_CODE        (권장) 설정하면 같은 코드를 보낸 요청만 허용 → API 비용 보호
-//   ANTHROPIC_MODEL    (선택) 기본 claude-sonnet-5-5
+//   ANTHROPIC_MODEL    (선택) 기본 claude-haiku-4-5 (절약 모드: 웹 검색 없음)
 //   WEB_SEARCH_TOOL    (선택) 기본 web_search_20250305
-import { json, checkAccess } from '../_lib/util.js';
+import { json, checkAccess, UA } from '../_lib/util.js';
 
 const TTL = { company: 43200, news: 1800, outlook: 1800, conclusion: 0 };
 
 const SYSTEM = (today) =>
   `당신은 개인 투자자를 돕는 리서치 애널리스트입니다. 오늘 날짜는 ${today}(KST)입니다.
-- 반드시 한국어로 씁니다. 조사를 마치면 최종 결과를 submit_report 도구의 입력으로 제출합니다. 입력의 최상위 키는 요청에 적힌 JSON 형식의 키와 같아야 하고, 결과를 글로 출력하지 않습니다.
-- 웹 검색으로 최신 공시·실적·뉴스·애널리스트 의견을 확인한 뒤 작성합니다. 검색으로 확인하지 못한 수치는 지어내지 말고 null로 두고 note에 이유를 적습니다.
-- 수치에는 기준 기간(예: FY2025, 2026년 2분기)과 통화 단위를 함께 적습니다.
-- 투자 권유가 아니라 참고용 분석입니다. 근거가 약하면 확신도를 낮게 표시합니다.`;
+- 반드시 초등학생도 이해할 수 있는 쉬운 우리말로 씁니다. 결과는 submit_report 도구의 입력으로만 제출하며, 입력의 최상위 키는 요청에 적힌 JSON 형식의 키와 같아야 합니다.
+- 비용 절약을 위해 아주 간결하게 씁니다. 군더더기 없이 JSON 값만 짧게 채웁니다.
+- 웹 검색은 쓸 수 없습니다. 제공된 자료와 확실히 아는 사실만 쓰고, 확실하지 않은 수치는 지어내지 말고 null로 둡니다.
+- 투자 권유가 아니라 참고용 분석입니다.`;
+
+// Yahoo 검색 API의 뉴스 제목(무료)을 가져와 AI에게 넘긴다 — 웹 검색 비용을 아끼기 위함
+async function yahooNews(symbol) {
+  for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
+    try {
+      const r = await fetch(`https://${host}/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=0&newsCount=8`, {
+        headers: { 'User-Agent': UA, Accept: 'application/json' },
+      });
+      if (!r.ok) continue;
+      const j = await r.json();
+      const list = (j.news || []).slice(0, 6).map((n) => ({
+        title: String(n.title || '').slice(0, 160),
+        source: n.publisher || '',
+        date: n.providerPublishTime ? new Date(n.providerPublishTime * 1000).toISOString().slice(0, 10) : '',
+        url: n.link || '',
+      }));
+      if (list.length) return list;
+    } catch (e) {
+      /* 다음 호스트 */
+    }
+  }
+  return [];
+}
 
 function prompts(part, b) {
   const who = `${b.name || b.symbol} (종목코드 ${b.symbol}${b.currency ? ', 통화 ' + b.currency : ''})`;
   if (part === 'company') {
     return {
-      searches: 4,
-      maxTokens: 3500,
-      user: `${who}의 기업 요약을 조사해 아래 JSON으로 답하세요.
+      maxTokens: 1100,
+      user: `${who}의 기업 요약을 알고 있는 지식으로 짧게 JSON으로 답하세요. 수치는 확실한 것만 쓰고 모르면 null.
 {
  "name": "회사명",
- "oneLine": "한 줄 정의(30자 안팎)",
- "summary": "어떤 일을 하고 어떻게 돈을 버는 회사인지 쉬운 말로 최대 3문장(3줄 이내)",
- "segments": [
-   {"name":"사업 부문명","revenue":"최근 회계연도 부문 매출(통화 포함)","revenueShare":"전체 매출 대비 비중(%)","operatingIncome":"부문 영업이익(없으면 공시 가능한 이익 지표)","profitShare":"전체 영업이익 대비 비중(%) 또는 null"}
- ],
- "topRevenueSegment": "매출이 가장 큰 부문명",
- "topProfitSegment": "영업이익이 가장 큰 부문명",
- "segmentComment": "어느 사업이 매출을 제일 많이 올리고 어느 사업이 이익을 제일 많이 남기는지 쉬운 말로 최대 3문장(3줄 이내)",
- "financial": {"period":"기준 기간","revenue":"매출","operatingIncome":"영업이익","operatingMargin":"영업이익률","note":"쉬운 말로 한 줄(예: 작년보다 얼마나 늘었는지)"},
- "note": "확인하지 못한 항목이 있으면 설명, 없으면 null"
+ "oneLine": "한 줄 정의(25자 안팎)",
+ "summary": "어떤 일을 하고 어떻게 돈을 버는 회사인지 쉬운 말로 최대 3문장",
+ "segments": [{"name":"부문명","revenue":"최근 연 매출(통화·기간)","revenueShare":"매출 비중(%)","operatingIncome":"부문 영업이익 또는 null","profitShare":"이익 비중(%) 또는 null"}],
+ "topRevenueSegment": "매출이 가장 큰 부문",
+ "topProfitSegment": "이익이 가장 큰 부문",
+ "segmentComment": "어느 사업이 매출·이익을 제일 많이 내는지 쉬운 말로 최대 3문장",
+ "financial": {"period":"기준 기간","revenue":"매출","operatingIncome":"영업이익","operatingMargin":"영업이익률","note":"쉬운 말 한 줄"},
+ "note": "최신 공시가 아닌 AI가 아는 정보라 오래됐을 수 있다는 한 줄"
 }
-쓰기 규칙: 초등학생도 이해할 수 있게 쉬운 우리말로 쓰고, 어려운 경제·전문 용어(영업이익률, 컨센서스, 밸류에이션 등)는 쓰지 말거나 "장사해서 남긴 돈"처럼 풀어 쓰세요. summary와 segmentComment는 각각 3줄(3문장)을 넘기지 마세요. 숫자 칸(revenue, operatingIncome 등)은 그대로 정확히 적습니다.
-부문 공시가 없는 회사는 제품군·지역별 구분으로 대체하고 note에 밝히세요. 부문은 최대 6개.`,
+부문은 최대 3개. 전문 용어는 쉽게 풀어 쓰세요.`,
     };
   }
   if (part === 'news') {
+    const h = JSON.stringify(b.headlines || []);
     return {
-      searches: 7,
-      maxTokens: 5000,
-      user: `${who}의 최근 한 달 안팎 뉴스를 가능한 한 폭넓게 검색해 중요한 순서대로 최대 10건 정리하고, 각 뉴스가 앞으로 주가에 줄 영향을 판단하세요.
+      maxTokens: 1300,
+      user: `${who}의 최근 뉴스 제목 목록입니다. 주가와 관련 있는 것만 최대 5건 골라 아래 JSON으로 정리하세요. 목록이 비었으면 items는 빈 배열로 두고 note에 "뉴스를 가져오지 못했습니다"라고 쓰세요.
+뉴스 목록: ${h}
 {
- "items": [
-   {"title":"기사 제목","source":"언론사","date":"YYYY-MM-DD","url":"기사 주소","summary":"무슨 일이 있었는지 쉬운 말로 1문장","impact":"호재|악재|중립","horizon":"단기(2주 이내)|중기(1~3개월)|장기","magnitude":1~5 정수,"reasoning":"그래서 주가에 왜 좋거나 나쁜지 초등학생도 알 만한 쉬운 말로 1문장"}
- ],
- "overall": {"sentiment":"긍정|부정|혼조|중립","netImpact2w":"앞으로 2주 주가에 미칠 영향 한 줄(쉬운 말)","summary":"뉴스 흐름 종합, 쉬운 말로 최대 3문장(3줄 이내)","keyThemes":["핵심 테마 2~4개"]},
- "note": "검색에서 확인하지 못한 점이 있으면 설명, 없으면 null"
+ "items": [{"title":"목록의 제목 그대로","source":"목록의 source","date":"목록의 date","url":"목록의 url 그대로","summary":"무슨 일인지 쉬운 말로 1문장(한국어)","impact":"호재|악재|중립","horizon":"단기(2주 이내)|중기(1~3개월)|장기","magnitude":1~5 정수,"reasoning":"주가에 왜 좋거나 나쁜지 쉬운 말로 1문장"}],
+ "overall": {"sentiment":"긍정|부정|혼조|중립","netImpact2w":"앞으로 2주 주가에 미칠 영향 한 줄","summary":"뉴스 흐름 종합 최대 3문장","keyThemes":["핵심 테마 2~3개"]},
+ "note": null
 }
-쓰기 규칙: 초등학생도 이해할 수 있게 쉬운 우리말로 쓰고 전문 용어는 풀어 쓰세요. 기사마다 summary와 reasoning을 합쳐 3줄을 넘기지 마세요. 기사 제목(title)은 원문 그대로 둡니다.
-같은 사건을 다룬 기사는 하나로 합치고, 주가와 무관한 기사는 제외하세요. url은 검색 결과에서 확인한 실제 주소만 쓰세요.`,
+기사 내용을 지어내지 말고 제목에서 알 수 있는 범위에서만 판단하세요.`,
     };
   }
   if (part === 'outlook') {
     const t = JSON.stringify(b.tech || {});
     return {
-      searches: 5,
-      maxTokens: 5000,
-      user: `${who}의 향후 2주(영업일 10일) 주가 흐름을 전망하세요. 현재가는 ${b.price}입니다.
-아래는 서버가 계산한 차트 지표입니다. 가격 수준은 이 지표(이동평균, 지지·저항 후보, ATR, 변동성 범위)에서 크게 벗어나지 않게 정하고, 웹 검색으로 애널리스트 목표주가·투자의견·최근 실적/이벤트 일정을 확인하세요.
+      maxTokens: 1700,
+      user: `${who}의 향후 2주(영업일 10일) 주가를 아래 차트 지표만 근거로 전망하세요. 현재가는 ${b.price}입니다. 가격은 지표(이동평균, 지지·저항 후보, 변동성 범위)에서 크게 벗어나지 않게 정하세요.
 차트 지표: ${t}
-
 {
- "forecast": {
-   "direction": "상승|횡보|하락",
-   "confidence": "낮음|중간|높음",
-   "expectedRange": {"low": 숫자, "high": 숫자},
-   "scenarios": {
-     "bull": {"price": 숫자, "probabilityPct": 숫자, "narrative": "조건과 근거 1~2문장"},
-     "base": {"price": 숫자, "probabilityPct": 숫자, "narrative": "..."},
-     "bear": {"price": 숫자, "probabilityPct": 숫자, "narrative": "..."}
-   },
-   "rationale": "차트 흐름(추세·모멘텀·거래량)을 근거로 한 판단 3~4문장"
- },
- "levels": {
-   "resistances": [{"price": 숫자, "reason": "왜 저항인지"}],
-   "supports": [{"price": 숫자, "reason": "..."}],
-   "sellPlan": {
-     "target1": {"price": 숫자, "action": "예: 보유분의 1/3 분할 매도"},
-     "target2": {"price": 숫자, "action": "..."},
-     "stopLoss": {"price": 숫자, "action": "..."},
-     "timing": "매도·비중 축소를 고려할 시점과 신호(예: 저항선 돌파 실패, RSI 70 이탈, 실적 발표 전) 2~3문장"
-   }
- },
- "analysts": {
-   "consensus": "매수|중립|매도 중 컨센서스와 한 줄 설명",
-   "targetAvg": 숫자 또는 null, "targetHigh": 숫자 또는 null, "targetLow": 숫자 또는 null,
-   "analystCount": 숫자 또는 null, "upsidePct": 현재가 대비 평균 목표가 괴리율(%) 또는 null,
-   "recent": [{"firm":"증권사","action":"상향|하향|유지|신규","rating":"의견","target":숫자 또는 null,"date":"YYYY-MM-DD"}],
-   "comment": "애널리스트 시각 요약 2문장"
- },
- "events": [{"date":"YYYY-MM-DD","event":"2주 안의 실적 발표·FOMC·배당락·제품 발표 등","relevance":"왜 중요한지"}],
- "note": "확인하지 못한 점이 있으면 설명, 없으면 null"
+ "forecast": {"direction":"상승|횡보|하락","confidence":"낮음|중간|높음","expectedRange":{"low":숫자,"high":숫자},
+   "scenarios":{"bull":{"price":숫자,"probabilityPct":숫자,"narrative":"쉬운 말 1문장"},"base":{"price":숫자,"probabilityPct":숫자,"narrative":"1문장"},"bear":{"price":숫자,"probabilityPct":숫자,"narrative":"1문장"}},
+   "rationale":"차트 흐름 근거 최대 3문장"},
+ "levels": {"resistances":[{"price":숫자,"reason":"짧게"}],"supports":[{"price":숫자,"reason":"짧게"}],
+   "sellPlan":{"target1":{"price":숫자,"action":"예: 1/3 매도"},"target2":{"price":숫자,"action":"..."},"stopLoss":{"price":숫자,"action":"..."},"timing":"언제·어떤 신호에 팔지 최대 2문장"}},
+ "analysts": {"consensus":"절약 모드라 실시간 애널리스트 의견은 제공하지 않습니다","targetAvg":null,"targetHigh":null,"targetLow":null,"analystCount":null,"upsidePct":null,"recent":[],"comment":""},
+ "events": [],
+ "note": null
 }
-확률 합계는 100으로 맞추세요. 저항선·지지선은 각 2~3개, 가까운 순서로 쓰세요. 현재가가 52주 신고가권이면 저항선은 심리적 가격대나 피보나치 확장 수준으로 보완하고 reason에 밝히세요.`,
+확률 합계는 100. 저항선·지지선은 각 2개, 가까운 순서. analysts와 events는 위 형식 그대로 두세요.`,
     };
   }
   if (part === 'conclusion') {
@@ -150,7 +142,7 @@ function extractJson(text) {
 async function callClaude(env, { user, searches, maxTokens }, today) {
   const messages = [{ role: 'user', content: user }];
   const tools = [];
-  if (searches) tools.push({ type: env.WEB_SEARCH_TOOL || 'web_search_20250305', name: 'web_search', max_uses: searches });
+  if (searches) tools.push({ type: env.WEB_SEARCH_TOOL || 'web_search_20250305', name: 'web_search', max_uses: searches }); // 절약 모드에서는 searches가 없다
   tools.push(SUBMIT_TOOL);
   let force = !searches; // 검색이 없는 결론 단계는 처음부터 제출을 강제
   for (let turn = 0; turn < 5; turn++) {
@@ -162,7 +154,7 @@ async function callClaude(env, { user, searches, maxTokens }, today) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: env.ANTHROPIC_MODEL || 'claude-sonnet-5-5',
+        model: env.ANTHROPIC_MODEL || 'claude-haiku-4-5',
         max_tokens: maxTokens,
         system: SYSTEM(today),
         messages,
@@ -211,7 +203,8 @@ export async function onRequestPost(context) {
   const part = body.part;
   const symbol = String(body.symbol || '').trim().toUpperCase();
   if (!symbol || !/^[A-Z0-9.\-^]{1,16}$/.test(symbol)) return json({ ok: false, error: '종목 코드가 올바르지 않습니다.' }, 400);
-  const spec = prompts(part, { ...body, symbol });
+  const headlines = part === 'news' ? await yahooNews(symbol) : null;
+  const spec = prompts(part, { ...body, symbol, headlines });
   if (!spec) return json({ ok: false, error: '알 수 없는 분석 항목입니다.' }, 400);
 
   const ttl = TTL[part];
