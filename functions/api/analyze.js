@@ -27,16 +27,17 @@ function prompts(part, b) {
 {
  "name": "회사명",
  "oneLine": "한 줄 정의(30자 안팎)",
- "summary": "어떤 일을 하는 회사인지 3~5문장. 주요 제품·서비스와 고객, 돈 버는 방식",
+ "summary": "어떤 일을 하고 어떻게 돈을 버는 회사인지 쉬운 말로 최대 3문장(3줄 이내)",
  "segments": [
    {"name":"사업 부문명","revenue":"최근 회계연도 부문 매출(통화 포함)","revenueShare":"전체 매출 대비 비중(%)","operatingIncome":"부문 영업이익(없으면 공시 가능한 이익 지표)","profitShare":"전체 영업이익 대비 비중(%) 또는 null"}
  ],
  "topRevenueSegment": "매출이 가장 큰 부문명",
  "topProfitSegment": "영업이익이 가장 큰 부문명",
- "segmentComment": "매출은 큰데 이익은 작은 부문 등 부문 구조에서 눈여겨볼 점 2~3문장",
- "financial": {"period":"기준 기간","revenue":"매출","operatingIncome":"영업이익","operatingMargin":"영업이익률","note":"추이 한 줄"},
+ "segmentComment": "어느 사업이 매출을 제일 많이 올리고 어느 사업이 이익을 제일 많이 남기는지 쉬운 말로 최대 3문장(3줄 이내)",
+ "financial": {"period":"기준 기간","revenue":"매출","operatingIncome":"영업이익","operatingMargin":"영업이익률","note":"쉬운 말로 한 줄(예: 작년보다 얼마나 늘었는지)"},
  "note": "확인하지 못한 항목이 있으면 설명, 없으면 null"
 }
+쓰기 규칙: 초등학생도 이해할 수 있게 쉬운 우리말로 쓰고, 어려운 경제·전문 용어(영업이익률, 컨센서스, 밸류에이션 등)는 쓰지 말거나 "장사해서 남긴 돈"처럼 풀어 쓰세요. summary와 segmentComment는 각각 3줄(3문장)을 넘기지 마세요. 숫자 칸(revenue, operatingIncome 등)은 그대로 정확히 적습니다.
 부문 공시가 없는 회사는 제품군·지역별 구분으로 대체하고 note에 밝히세요. 부문은 최대 6개.`,
     };
   }
@@ -47,11 +48,12 @@ function prompts(part, b) {
       user: `${who}의 최근 한 달 안팎 뉴스를 가능한 한 폭넓게 검색해 중요한 순서대로 최대 10건 정리하고, 각 뉴스가 앞으로 주가에 줄 영향을 판단하세요.
 {
  "items": [
-   {"title":"기사 제목","source":"언론사","date":"YYYY-MM-DD","url":"기사 주소","summary":"2문장 요약","impact":"호재|악재|중립","horizon":"단기(2주 이내)|중기(1~3개월)|장기","magnitude":1~5 정수,"reasoning":"왜 그렇게 판단했는지 1~2문장"}
+   {"title":"기사 제목","source":"언론사","date":"YYYY-MM-DD","url":"기사 주소","summary":"무슨 일이 있었는지 쉬운 말로 1문장","impact":"호재|악재|중립","horizon":"단기(2주 이내)|중기(1~3개월)|장기","magnitude":1~5 정수,"reasoning":"그래서 주가에 왜 좋거나 나쁜지 초등학생도 알 만한 쉬운 말로 1문장"}
  ],
- "overall": {"sentiment":"긍정|부정|혼조|중립","netImpact2w":"앞으로 2주 주가에 미칠 순영향 한 줄","summary":"뉴스 흐름 종합 3~4문장","keyThemes":["핵심 테마 2~4개"]},
+ "overall": {"sentiment":"긍정|부정|혼조|중립","netImpact2w":"앞으로 2주 주가에 미칠 영향 한 줄(쉬운 말)","summary":"뉴스 흐름 종합, 쉬운 말로 최대 3문장(3줄 이내)","keyThemes":["핵심 테마 2~4개"]},
  "note": "검색에서 확인하지 못한 점이 있으면 설명, 없으면 null"
 }
+쓰기 규칙: 초등학생도 이해할 수 있게 쉬운 우리말로 쓰고 전문 용어는 풀어 쓰세요. 기사마다 summary와 reasoning을 합쳐 3줄을 넘기지 마세요. 기사 제목(title)은 원문 그대로 둡니다.
 같은 사건을 다룬 기사는 하나로 합치고, 주가와 무관한 기사는 제외하세요. url은 검색 결과에서 확인한 실제 주소만 쓰세요.`,
     };
   }
