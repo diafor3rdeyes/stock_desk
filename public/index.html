@@ -106,6 +106,19 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .btn:hover{filter:brightness(1.12)}
 .btn:disabled{opacity:.55;cursor:default}
 .btn.ghost{background:var(--surface);color:var(--ink);border:1px solid var(--line);padding:7px 16px;font-weight:600;font-size:13.5px}
+/* 내 수익률 */
+.pos-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;margin-bottom:16px}
+.pos-sum>div{background:var(--surface2);border:1px solid var(--line);border-radius:14px;padding:10px 14px;min-width:0}
+.pos-sum .k{font-size:12px;color:var(--muted)} .pos-sum .v{font-size:18px;font-weight:800;letter-spacing:-.02em;overflow-wrap:anywhere}
+.pos-sum .big .v{font-size:24px}
+.pos-form{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end;margin-top:14px}
+.pos-form label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:var(--muted);min-width:0;flex:1 1 130px}
+.pos-form input{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;font-size:15px;min-width:0;width:100%}
+.pos-form input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.pos-form .btn{padding:11px 22px}
+.lotx{border:0;background:none;color:var(--muted);cursor:pointer;font-size:18px;line-height:1;padding:2px 8px}
+.lotx:hover{color:var(--up)}
+.tblwrap{overflow-x:auto}
 .btn:focus-visible,.codebtn:focus-visible,.chip-btn:focus-visible,.pnav a:focus-visible,.srow-btn:focus-visible,.srow-x:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .examples{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;align-items:center;font-size:13.5px;color:var(--muted)}
 .chip-btn{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:5px 14px;font-size:13.5px;font-weight:600;cursor:pointer}
@@ -428,6 +441,8 @@ function skeleton(s){
     '<div class="range52"><div class="range-labels"><span>52주 최저 <span class="num">'+plain(t.low52,cur)+'</span></span><span>52주 최고 <span class="num">'+plain(t.high52,cur)+'</span></span></div>'+
     '<div class="range-bar"><i style="left:'+pos.toFixed(1)+'%"></i></div></div></div>'+
 
+  '<div class="step" id="sec-pos"><div class="step-h"><h2>내 수익률</h2><span class="tag">매수일과 금액을 적으면 자동 계산 · 이 기기에만 저장</span></div><div id="box-pos"></div></div>'+
+
   '<div class="step" id="sec-company"><div class="step-h"><h2>1. 기업 요약</h2><span class="tag">사업 구조와 부문별 매출·이익</span></div><div id="box-company">'+loadingBox('기업 정보와 최신 실적을 검색하는 중… (보통 20~60초)')+'</div></div>'+
 
   '<div class="step" id="sec-news"><div class="step-h"><h2>2. 최근 뉴스와 주가 영향</h2><span class="tag">한 달 안팎 기사를 모아 판단</span></div><div id="box-news">'+loadingBox('최근 뉴스를 검색하는 중… (보통 30~70초)')+'</div></div>'+
@@ -722,8 +737,107 @@ function newReport(s){ return { stock:s, ai:{}, status:{}, err:{}, conclusion:nu
 function isActive(rep){ return state.active===rep.stock.symbol && state.reports[rep.stock.symbol]===rep; }
 function idleBox(){ return '<div class="card"><p class="muted">AI 분석을 아직 실행하지 않았습니다. 웹 검색이 포함돼 호출 비용이 들어서, 저장된 종목은 누르기 전에는 돌리지 않습니다.</p><p style="margin-top:10px"><button class="btn ghost" data-act="runall" type="button">AI 분석 실행</button></p></div>'; }
 
+/* ---------- 매수 기록 · 수익률 ---------- */
+var POS_KEY='sd_pos';
+state.pos={};
+try{ var _p=JSON.parse(lsGet(POS_KEY)||'{}'); if(_p&&typeof _p==='object'&&!Array.isArray(_p)) state.pos=_p; }catch(e){}
+function savePos(){ lsSet(POS_KEY, JSON.stringify(state.pos,function(k,v){ return k==='loading'?undefined:v; })); }
+function todayStr(){ var d=new Date(Date.now()+9*3600*1000); return d.toISOString().slice(0,10); }
+function parseAmt(v){ var n=parseFloat(String(v||'').replace(/[^0-9.]/g,'')); return isFinite(n)&&n>0?n:null; }
+function lotUnit(l){ return isNum(l.unit)&&l.unit>0?l.unit:(isNum(l.px)&&l.px>0?l.px:null); }
+function calcLot(l,cur){
+  var u=lotUnit(l); if(!u||!isNum(cur)) return null;
+  var sh=l.amount/u, val=sh*cur;
+  return { sh:sh, val:val, pl:val-l.amount, ret:(val/l.amount-1)*100 };
+}
+function calcPos(sym,cur){
+  var lots=state.pos[sym]||[], o={n:lots.length,pend:0,amt:0,sh:0,val:0}, i;
+  for(i=0;i<lots.length;i++){
+    var c=calcLot(lots[i],cur); if(!c){ o.pend++; continue; }
+    o.amt+=lots[i].amount; o.sh+=c.sh; o.val+=c.val;
+  }
+  o.pl=o.val-o.amt; o.ret=o.amt?(o.val/o.amt-1)*100:null; o.avg=o.sh?o.amt/o.sh:null;
+  return o;
+}
+function daysSince(d){ var a=Date.parse(d+'T00:00:00Z'), b=Date.parse(todayStr()+'T00:00:00Z'); return Math.max(0,Math.round((b-a)/86400000)); }
+
+function renderPosition(rep){
+  var box=$('#box-pos'); if(!box||!isActive(rep)) return;
+  var s=rep.stock, cur=s.currency, sym=s.symbol, lots=state.pos[sym]||[];
+  var keep={ d:($('#posDate')||{}).value, a:($('#posAmt')||{}).value, u:($('#posUnit')||{}).value };
+  var t=calcPos(sym,s.price), h='';
+  if(lots.length){
+    h+='<div class="pos-sum">'+
+      '<div class="big"><div class="k">수익률</div><div class="v num '+dir(t.ret)+'">'+(t.ret==null?'–':arrow(t.ret)+' '+signed(t.ret,2)+'%')+'</div></div>'+
+      '<div><div class="k">평가손익</div><div class="v num '+dir(t.pl)+'">'+(t.amt?signed(cur==='KRW'?Math.round(t.pl):t.pl,cur==='KRW'?0:2)+(cur==='KRW'?'원':''):'–')+'</div></div>'+
+      '<div><div class="k">총 매수금액</div><div class="v num">'+money(t.amt,cur)+'</div></div>'+
+      '<div><div class="k">평가금액</div><div class="v num">'+(t.amt?money(t.val,cur):'–')+'</div></div>'+
+      '<div><div class="k">평균 매수단가</div><div class="v num">'+(t.avg?money(t.avg,cur):'–')+'</div></div>'+
+      '<div><div class="k">보유 수량</div><div class="v num">'+(t.sh?nf(t.sh,t.sh<100?4:2):'–')+'</div></div></div>';
+    if(t.pend) h+='<p class="muted small" style="margin:-6px 0 12px">매수일 종가를 아직 못 가져온 건이 '+t.pend+'개 있어 합계에서 빠져 있습니다.</p>';
+    h+='<div class="tblwrap"><table style="min-width:640px"><thead><tr><th>매수일</th><th>매수금액</th><th>매수단가</th><th>수량</th><th>평가금액</th><th>손익</th><th>수익률</th><th></th></tr></thead><tbody>';
+    lots.forEach(function(l){
+      var c=calcLot(l,s.price), u=lotUnit(l), note;
+      if(l.loading) note='<span class="muted small">종가 조회 중…</span>';
+      else if(!u) note='<span class="muted small">'+esc(l.pxErr||'종가 없음')+' <button class="btn ghost" type="button" data-act="lotretry" data-id="'+esc(l.id)+'" style="padding:2px 10px;font-size:12px">재시도</button></span>';
+      h+='<tr><td class="num">'+esc(l.date)+'<div class="muted small">'+daysSince(l.date)+'일 전'+(l.pxDate&&l.pxDate!==l.date&&!(isNum(l.unit)&&l.unit>0)?' · '+esc(l.pxDate)+' 종가 기준':'')+'</div></td>'+
+        '<td class="num">'+money(l.amount,cur)+'</td>'+
+        '<td class="num">'+(u?money(u,cur)+'<div class="muted small">'+(isNum(l.unit)&&l.unit>0?'직접입력':'종가')+'</div>':(note||'–'))+'</td>'+
+        '<td class="num">'+(c?nf(c.sh,c.sh<100?4:2):'–')+'</td>'+
+        '<td class="num">'+(c?money(c.val,cur):'–')+'</td>'+
+        '<td class="num '+(c?dir(c.pl):'')+'">'+(c?signed(cur==='KRW'?Math.round(c.pl):c.pl,cur==='KRW'?0:2):'–')+'</td>'+
+        '<td class="num '+(c?dir(c.ret):'')+'"><b>'+(c?arrow(c.ret)+' '+signed(c.ret,2)+'%':'–')+'</b></td>'+
+        '<td><button class="lotx" type="button" data-act="lotdel" data-id="'+esc(l.id)+'" aria-label="삭제">×</button></td></tr>';
+    });
+    h+='</tbody></table></div>';
+  } else h+='<p class="muted" style="margin:0">아직 기록이 없습니다. 아래에 매수한 날짜와 금액을 넣으면 그날 종가를 기준으로 현재 수익률을 계산합니다.</p>';
+  h+='<form class="pos-form" id="posForm" novalidate>'+
+    '<label>매수 날짜<input type="date" id="posDate" max="'+todayStr()+'" value="'+esc(keep.d||'')+'"></label>'+
+    '<label>매수 금액 ('+esc(cur==='KRW'?'원':cur||'')+')<input type="text" inputmode="decimal" id="posAmt" placeholder="'+(cur==='KRW'?'예: 1000000':'예: 1000')+'" value="'+esc(keep.a||'')+'"></label>'+
+    '<label>매수 단가 (선택)<input type="text" inputmode="decimal" id="posUnit" placeholder="비우면 그날 종가" value="'+esc(keep.u||'')+'"></label>'+
+    '<button class="btn" type="submit">기록 추가</button></form>'+
+    '<div id="posErr"></div>'+
+    '<p class="muted small" style="margin:10px 0 0">날짜가 주말·휴장일이면 그다음 거래일 종가를 씁니다. 실제 체결가·수수료·환율은 반영되지 않는 참고용 계산입니다.</p>';
+  box.innerHTML='<div class="card">'+h+'</div>';
+}
+
+function resolveLot(rep, l){
+  var sym=rep.stock.symbol;
+  if(isNum(l.unit)&&l.unit>0){ return Promise.resolve(); }
+  l.loading=true; l.pxErr=null; renderPosition(rep);
+  return fetch('/api/price?symbol='+encodeURIComponent(sym)+'&date='+encodeURIComponent(l.date)).then(function(r){
+    return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||'종가 조회 실패'); return j; });
+  }).then(function(j){
+    l.px=j.close; l.pxDate=j.date; l.pxErr=null;
+    if(j.future) l.pxErr='미래 날짜입니다';
+  }, function(e){ l.pxErr=(e&&e.message)||'종가 조회 실패'; })
+  .then(function(){ l.loading=false; savePos(); renderPosition(rep); renderList(); });
+}
+function resolvePending(rep){
+  (state.pos[rep.stock.symbol]||[]).forEach(function(l){ if(!lotUnit(l)&&!l.loading&&!l.pxErr) resolveLot(rep,l); });
+}
+function addLot(rep){
+  var err=$('#posErr'), date=$('#posDate').value, amt=parseAmt($('#posAmt').value), unitRaw=$('#posUnit').value.trim(), unit=unitRaw?parseAmt(unitRaw):null;
+  var msg='';
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)) msg='매수 날짜를 선택해 주세요.';
+  else if(date>todayStr()) msg='오늘 이후 날짜는 기록할 수 없습니다.';
+  else if(!amt) msg='매수 금액을 숫자로 입력해 주세요.';
+  else if(unitRaw&&!unit) msg='매수 단가는 숫자로 입력하거나 비워 주세요.';
+  if(msg){ err.innerHTML='<div class="err">'+esc(msg)+'</div>'; return; }
+  var sym=rep.stock.symbol, lots=(state.pos[sym]=state.pos[sym]||[]);
+  if(lots.length>=50){ err.innerHTML='<div class="err">종목당 최대 50건까지 기록할 수 있습니다.</div>'; return; }
+  var l={ id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), date:date, amount:amt, unit:unit };
+  lots.push(l); lots.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
+  savePos();
+  $('#posAmt').value=''; $('#posUnit').value='';
+  renderPosition(rep); renderList();
+  resolveLot(rep,l);
+}
+
 function rowHtml(sym){
   var r=state.reports[sym], s=r&&r.stock, on=sym===state.active;
+  var myPill='';
+  if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price); if(pt.ret!=null) myPill='<span class="pill '+(pt.ret>0?'good':pt.ret<0?'bad':'neutral')+'">내 수익 '+signed(pt.ret,1)+'%</span>'; }
   var code=sym.replace(/\.(KS|KQ)$/,'');
   var busy=r&&(PARTS.some(function(p){ return r.status[p]==='loading'; })||r.cStatus==='loading');
   var closes=s?s.rows.slice(-40).map(function(x){ return x.c; }):[];
@@ -736,7 +850,7 @@ function rowHtml(sym){
       '<span class="srow-id"><b>'+esc(code)+'</b><span class="srow-name">'+esc(s?s.name:'불러오는 중…')+'</span></span>'+
       '<span class="srow-px num">'+(s?money(s.price,s.currency):'–')+'</span>'+
       '<span class="srow-chg num '+(s?dir(s.changePct):'flat')+'">'+(s?arrow(s.changePct)+' '+signed(s.changePct,2)+'%':'')+'</span>'+
-      '<span class="srow-chips">'+(bias?'<span class="pill '+biasCls+'">차트 '+esc(bias)+'</span>':'')+stance+(busy?'<span class="pulse sm" title="분석 중"></span>':'')+'</span>'+
+      '<span class="srow-chips">'+myPill+(bias?'<span class="pill '+biasCls+'">차트 '+esc(bias)+'</span>':'')+stance+(busy?'<span class="pulse sm" title="분석 중"></span>':'')+'</span>'+
       '<span class="srow-spark">'+(closes.length?sparkline(closes, s&&s.changePct<0?'var(--down)':'var(--up)'):'')+'</span>'+
       '<span class="chev" aria-hidden="true">'+(on?'▴':'▾')+'</span>'+
     '</button>'+
@@ -796,6 +910,7 @@ function show(sym){
   renderIndicators(s); drawChart(s, rep.status.outlook==='ok'?rep.ai.outlook:null);
   PARTS.forEach(function(p){ paintPart(rep,p); });
   paintConclusion(rep);
+  renderPosition(rep); resolvePending(rep);
 }
 
 function basePayload(s){ return {symbol:s.symbol,name:s.name,currency:s.currency}; }
@@ -927,6 +1042,15 @@ document.addEventListener('click', function(ev){
   if(act==='tab'){ if(state.active===el.dataset.sym){ collapse(); } else { show(el.dataset.sym); var sl=document.querySelector('.srow.on'); if(sl) sl.scrollIntoView({behavior:'smooth',block:'nearest'}); } return; }
   if(act==='close'){ closeTab(el.dataset.sym); return; }
   if(!rep) return;
+  if(act==='lotdel'){
+    var sy=rep.stock.symbol; state.pos[sy]=(state.pos[sy]||[]).filter(function(l){ return l.id!==el.dataset.id; });
+    if(!state.pos[sy].length) delete state.pos[sy];
+    savePos(); renderPosition(rep); renderList(); return;
+  }
+  if(act==='lotretry'){
+    var lt=(state.pos[rep.stock.symbol]||[]).filter(function(l){ return l.id===el.dataset.id; })[0];
+    if(lt){ lt.pxErr=null; resolveLot(rep,lt); } return;
+  }
   if(act==='runall'){ runAll(rep); return; }
   if(act==='retry'){
     var part=el.dataset.part;
@@ -935,6 +1059,9 @@ document.addEventListener('click', function(ev){
   }
 });
 $('#form').addEventListener('submit', function(ev){ ev.preventDefault(); analyze($('#sym').value); });
+document.addEventListener('submit', function(ev){
+  if(ev.target&&ev.target.id==='posForm'){ ev.preventDefault(); var rep=state.reports[state.active]; if(rep) addLot(rep); }
+});
 
 renderList();
 restoreWatch();
