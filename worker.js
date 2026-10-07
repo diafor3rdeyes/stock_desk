@@ -2,6 +2,7 @@
 import * as market from './functions/api/market.js';
 import * as stock from './functions/api/stock.js';
 import * as analyze from './functions/api/analyze.js';
+import * as price from './functions/api/price.js';
 
 const notFound = () =>
   new Response(JSON.stringify({ error: 'not found' }), {
@@ -33,6 +34,7 @@ export default {
     try {
       if (url.pathname === '/api/market' && request.method === 'GET') return await market.onRequestGet(context);
       if (url.pathname === '/api/stock' && request.method === 'GET') return await stock.onRequestGet(context);
+      if (url.pathname === '/api/price' && request.method === 'GET') return await price.onRequestGet(context);
       if (url.pathname === '/api/analyze' && request.method === 'POST') return await analyze.onRequestPost(context);
     } catch (e) {
       return new Response(JSON.stringify({ error: String((e && e.message) || e) }), {
