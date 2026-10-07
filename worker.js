@@ -1,0 +1,31 @@
+// Cloudflare Workers 진입점: /api/* 는 아래 함수로, 나머지는 public 폴더의 화면 파일로 보낸다.
+import * as market from './functions/api/market.js';
+import * as stock from './functions/api/stock.js';
+import * as analyze from './functions/api/analyze.js';
+
+const notFound = () =>
+  new Response(JSON.stringify({ error: 'not found' }), {
+    status: 404,
+    headers: { 'content-type': 'application/json; charset=utf-8' },
+  });
+
+export default {
+  async fetch(request, env, ctx) {
+    const url = new URL(request.url);
+    const context = { request, env, waitUntil: (p) => ctx.waitUntil(p) };
+
+    try {
+      if (url.pathname === '/api/market' && request.method === 'GET') return await market.onRequestGet(context);
+      if (url.pathname === '/api/stock' && request.method === 'GET') return await stock.onRequestGet(context);
+      if (url.pathname === '/api/analyze' && request.method === 'POST') return await analyze.onRequestPost(context);
+    } catch (e) {
+      return new Response(JSON.stringify({ error: String((e && e.message) || e) }), {
+        status: 500,
+        headers: { 'content-type': 'application/json; charset=utf-8' },
+      });
+    }
+
+    if (url.pathname.startsWith('/api/')) return notFound();
+    return env.ASSETS.fetch(request);
+  },
+};
