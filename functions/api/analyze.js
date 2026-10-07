@@ -17,8 +17,64 @@ const SYSTEM = (today) =>
 - 웹 검색은 쓸 수 없습니다. 제공된 자료와 확실히 아는 사실만 쓰고, 확실하지 않은 수치는 지어내지 말고 null로 둡니다.
 - 투자 권유가 아니라 참고용 분석입니다.`;
 
-// Yahoo 검색 API의 뉴스 제목(무료)을 가져와 AI에게 넘긴다 — 웹 검색 비용을 아끼기 위함
-async function yahooNews(symbol) {
+// 뉴스 제목 수집(무료): 해외 종목은 Yahoo 검색 API, 국내 종목(.KS/.KQ)은 한글 이름으로 구글 뉴스 RSS를 쓴다 — 웹 검색 비용을 아끼기 위함
+const decodeXml = (t) =>
+  String(t || '')
+    .replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, '$1')
+    .replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&')
+    .trim();
+
+async function koreanName(code) {
+  try {
+    const r = await fetch(`https://ac.stock.naver.com/ac?q=${code}&target=stock`, { headers: { 'User-Agent': UA, Accept: 'application/json' } });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const it = j && j.items && j.items[0];
+    if (!it) return null;
+    if (typeof it.name === 'string') return it.name;
+    if (Array.isArray(it) && Array.isArray(it[0]) && typeof it[0][0] === 'string') return it[0][0];
+    if (Array.isArray(it) && typeof it[0] === 'string') return it[0];
+  } catch (e) {
+    /* 이름을 못 구하면 영문 이름으로 대체 */
+  }
+  return null;
+}
+
+async function googleNewsKr(query) {
+  try {
+    const r = await fetch(`https://news.google.com/rss/search?q=${encodeURIComponent(query)}&hl=ko&gl=KR&ceid=KR:ko`, {
+      headers: { 'User-Agent': UA, Accept: 'application/rss+xml, application/xml, text/xml' },
+    });
+    if (!r.ok) return [];
+    const xml = await r.text();
+    const out = [];
+    const re = /<item>([\s\S]*?)<\/item>/g;
+    let m;
+    while ((m = re.exec(xml)) && out.length < 6) {
+      const it = m[1];
+      const pick = (tag) => {
+        const x = it.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
+        return x ? decodeXml(x[1]) : '';
+      };
+      let title = pick('title');
+      let source = pick('source');
+      if (source && title.endsWith(' - ' + source)) title = title.slice(0, -(source.length + 3));
+      const d = Date.parse(pick('pubDate'));
+      out.push({ title: title.slice(0, 160), source, date: Number.isFinite(d) ? new Date(d).toISOString().slice(0, 10) : '', url: pick('link') });
+    }
+    return out;
+  } catch (e) {
+    return [];
+  }
+}
+
+async function yahooNews(symbol, name) {
+  const kr = symbol.match(/^(\d{6})\.(KS|KQ)$/);
+  if (kr) {
+    const kname = (await koreanName(kr[1])) || String(name || '').replace(/,?\s*(Co\.?,?\s*)?(Ltd|Inc|Corp)\.?$/i, '').trim();
+    const list = await googleNewsKr(`${kname || kr[1]} 주가`);
+    if (list.length) return list;
+  }
   for (const host of ['query1.finance.yahoo.com', 'query2.finance.yahoo.com']) {
     try {
       const r = await fetch(`https://${host}/v1/finance/search?q=${encodeURIComponent(symbol)}&quotesCount=0&newsCount=8`, {
@@ -203,7 +259,7 @@ export async function onRequestPost(context) {
   const part = body.part;
   const symbol = String(body.symbol || '').trim().toUpperCase();
   if (!symbol || !/^[A-Z0-9.\-^]{1,16}$/.test(symbol)) return json({ ok: false, error: '종목 코드가 올바르지 않습니다.' }, 400);
-  const headlines = part === 'news' ? await yahooNews(symbol) : null;
+  const headlines = part === 'news' ? await yahooNews(symbol, body.name) : null;
   const spec = prompts(part, { ...body, symbol, headlines });
   if (!spec) return json({ ok: false, error: '알 수 없는 분석 항목입니다.' }, 400);
 
