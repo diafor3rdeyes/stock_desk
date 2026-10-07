@@ -140,6 +140,14 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .srow-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .srow-spark .spark{margin:0;height:30px}
 .chev{color:var(--muted);font-size:14px}
+.srow-drag{flex:none;width:58px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;background:none;border:0;border-right:1px solid var(--line);cursor:grab;color:var(--muted);touch-action:none;user-select:none;padding:0}
+.srow-drag .rank{font-size:20px;font-weight:800;color:var(--accent);line-height:1;letter-spacing:-.03em}
+.srow-drag .grip{font-size:15px;line-height:1;letter-spacing:1px}
+.srow-drag:hover .grip{color:var(--ink)}
+.srow-drag:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.srow.dragging{position:relative;z-index:5;opacity:.92;box-shadow:0 14px 34px rgba(0,0,0,.22);transition:none;border-color:var(--accent)}
+.srow.dropbefore{box-shadow:0 -3px 0 0 var(--accent)}
+.srow.dropafter{box-shadow:0 3px 0 0 var(--accent)}
 .srow-x{background:none;border:0;padding:0 20px 0 10px;cursor:pointer;color:var(--muted);font-size:22px;line-height:1}
 .srow-x:hover{color:var(--ink)}
 @media (max-width:760px){
@@ -830,7 +838,7 @@ function addLot(rep){
   renderPosition(rep); renderList();
 }
 
-function rowHtml(sym){
+function rowHtml(sym,i){
   var r=state.reports[sym], s=r&&r.stock, on=sym===state.active;
   var myPill='';
   if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price,s.currency); if(pt.ret!=null) myPill='<span class="pill '+(pt.ret>0?'good':pt.ret<0?'bad':'neutral')+'">내 수익 '+signed(pt.ret,1)+'%</span>'; }
@@ -842,6 +850,7 @@ function rowHtml(sym){
   var stance='';
   if(r&&r.cStatus==='ok'&&r.conclusion){ var sc=parseInt(r.conclusion.score,10)||0; stance='<span class="pill '+(sc>0?'good':sc<0?'bad':'neutral')+'">'+esc(r.conclusion.stance||'')+'</span>'; }
   return '<div class="srow'+(on?' on':'')+'"><div class="srow-head">'+
+    '<button type="button" class="srow-drag" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 순위 '+(i+1)+'위, 위아래 방향키 또는 끌어서 순서 변경" title="끌어서 순위 변경"><span class="rank">'+(i+1)+'</span><span class="grip" aria-hidden="true">⠿</span></button>'+
     '<button type="button" class="srow-btn" data-act="tab" data-sym="'+esc(sym)+'" aria-expanded="'+(on?'true':'false')+'">'+
       '<span class="srow-id"><b>'+esc(code)+'</b><span class="srow-name">'+esc(s?s.name:'불러오는 중…')+'</span></span>'+
       '<span class="srow-px num">'+(s?money(s.price,s.currency):'–')+'</span>'+
@@ -861,7 +870,7 @@ function renderList(){
     list.innerHTML='<div class="card empty">아직 추가한 종목이 없습니다. 위 입력창에 종목 코드를 넣어 보세요.</div>';
     return;
   }
-  list.innerHTML=state.order.map(rowHtml).join('');
+  list.innerHTML=state.order.map(function(sym,i){ return rowHtml(sym,i); }).join('');
   if(state.active){
     var slots=list.querySelectorAll('.slot'), i, slot=null;
     for(i=0;i<slots.length;i++){ if(slots[i].getAttribute('data-slot')===state.active){ slot=slots[i]; break; } }
@@ -1067,6 +1076,44 @@ document.addEventListener('click', function(ev){
 $('#form').addEventListener('submit', function(ev){ ev.preventDefault(); analyze($('#sym').value); });
 document.addEventListener('submit', function(ev){
   if(ev.target&&ev.target.id==='posForm'){ ev.preventDefault(); var rep=state.reports[state.active]; if(rep) addLot(rep); }
+});
+
+/* 종목 순위: 왼쪽 번호 칸을 끌어서(터치 포함) 위아래로 옮기거나, 포커스 후 ↑↓ 키로 바꾼다 */
+function moveSym(sym, to){
+  var from=state.order.indexOf(sym); if(from<0||to<0||to>=state.order.length||to===from) return;
+  state.order.splice(from,1); state.order.splice(to,0,sym); saveWatch(); renderList();
+}
+document.addEventListener('pointerdown', function(ev){
+  var h=ev.target.closest&&ev.target.closest('.srow-drag'); if(!h||(ev.button!==undefined&&ev.button>0)) return;
+  ev.preventDefault();
+  var row=h.closest('.srow'), sym=h.getAttribute('data-sym');
+  var rows=[].slice.call(document.querySelectorAll('#list .srow')), idx=rows.indexOf(row), target=idx, startY=ev.clientY;
+  var others=rows.filter(function(r){ return r!==row; });
+  row.classList.add('dragging');
+  try{ h.setPointerCapture(ev.pointerId); }catch(e){}
+  function mv(e){
+    row.style.transform='translateY('+(e.clientY-startY)+'px)';
+    var t=0; others.forEach(function(r){ var b=r.getBoundingClientRect(); if(e.clientY>b.top+b.height/2) t++; });
+    target=t;
+    others.forEach(function(r){ r.classList.remove('dropbefore','dropafter'); });
+    if(others.length){ if(t<others.length) others[t].classList.add('dropbefore'); else others[others.length-1].classList.add('dropafter'); }
+    if(e.clientY<70) window.scrollBy(0,-14); else if(e.clientY>window.innerHeight-70) window.scrollBy(0,14);
+  }
+  function up(){
+    h.removeEventListener('pointermove',mv); h.removeEventListener('pointerup',up); h.removeEventListener('pointercancel',up);
+    row.style.transform=''; row.classList.remove('dragging');
+    others.forEach(function(r){ r.classList.remove('dropbefore','dropafter'); });
+    if(target!==idx) moveSym(sym,target);
+  }
+  h.addEventListener('pointermove',mv); h.addEventListener('pointerup',up); h.addEventListener('pointercancel',up);
+});
+document.addEventListener('keydown', function(ev){
+  var h=ev.target.closest&&ev.target.closest('.srow-drag'); if(!h) return;
+  if(ev.key!=='ArrowUp'&&ev.key!=='ArrowDown') return;
+  ev.preventDefault();
+  var sym=h.getAttribute('data-sym'), i=state.order.indexOf(sym);
+  moveSym(sym, i+(ev.key==='ArrowUp'?-1:1));
+  var nh=document.querySelector('.srow-drag[data-sym="'+sym.replace(/"/g,'')+'"]'); if(nh) nh.focus();
 });
 
 renderList();
