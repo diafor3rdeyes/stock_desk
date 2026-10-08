@@ -130,8 +130,9 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .srow-id{display:grid;min-width:0}
 .srow-id b{font-size:13px;font-weight:400;color:var(--muted)}
 .srow-name{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.srow-px{font-size:17px;font-weight:700;text-align:right}
+.srow-px{font-size:17px;font-weight:700;text-align:right;white-space:nowrap}
 .srow-chg{font-size:14.5px;font-weight:700;text-align:right;min-width:78px}
+.srow-spark{min-width:0;overflow:hidden}
 .srow-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .srow-spark .spark{margin:0;height:30px}
 .chev{color:var(--muted);font-size:14px}
@@ -157,6 +158,10 @@ body.modal-open{overflow:hidden}
 .reg-pl{font-size:12px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 .reg-pl.up{color:var(--up)} .reg-pl.down{color:var(--down)} .reg-pl.flat{color:var(--flat)}
 .srow-reg:disabled{opacity:.4;cursor:default}
+.aibar{display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-top:12px;border-color:var(--accent)}
+.aibar .btn{padding:12px 22px;font-size:15px}
+.aibar-t{flex:1 1 240px;font-size:13.5px;color:var(--muted);line-height:1.5}
+.aibar-t b{color:var(--ink)}
 .pill.aim{background:var(--surface);color:var(--accent);border:1px solid var(--accent)}
 .aim-st{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
 .aim-warn{margin-top:12px;padding:11px 14px;border-radius:12px;background:var(--warn-soft);border:1px solid var(--line);font-size:13.5px}
@@ -182,11 +187,14 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
 .srow-x{background:none;border:0;padding:0 20px 0 10px;cursor:pointer;color:var(--muted);font-size:22px;line-height:1}
 .srow-x:hover{color:var(--ink)}
 @media (max-width:760px){
-  .srow-btn{grid-template-columns:minmax(52px,1fr) auto;padding:14px 2px 14px 12px}
+  .srow-btn{grid-template-columns:minmax(0,1fr) auto;padding:14px 2px 14px 12px}
   .srow-id b{overflow-wrap:normal;word-break:keep-all}
-  .srow-name{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .srow-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden;font-size:16px;line-height:1.25}
   .srow-drag{padding-inline:8px}
-  a.srow-tv{display:none}
+  .srow-head{flex-wrap:wrap}
+  .srow-btn{flex:1 1 calc(100% - 60px)}
+  .srow-reg,a.srow-tv,.srow-x{flex:1 1 0;justify-content:center;min-height:46px;padding:6px 0;border-top:1px solid var(--line);border-left:1px solid var(--line)}
+  .srow-drag{border-radius:19px 0 0 19px}
   .srow-btn{gap:4px 8px}
   .chev{display:none}
   .srow-px{grid-column:2;text-align:right}
@@ -201,6 +209,10 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
   .srow-reg{font-size:16px}
   .reg-pl{font-size:10.5px}
   .reg-pl .amt{display:none}
+  .srow-px{font-size:15px}
+  .srow-name{word-break:keep-all;overflow-wrap:normal}
+  .srow-chips .pill{font-size:10.5px;padding:2px 8px}
+  .srow-chips{min-width:0;gap:4px}
   .srow-reg{padding:0 6px}
 }
 .slot:not(:empty){border-top:1px solid var(--line);background:var(--bg);padding:22px 20px 26px;border-radius:0 0 19px 19px}
@@ -334,13 +346,6 @@ td.r,th.r{text-align:right}
   </div>
 </header>
 
-<section class="hero">
-  <div class="wrap">
-    <h1>지금 시장은<br>어떤 분위기일까요?</h1>
-    <p>공포·탐욕 지수와 주요 지수의 RSI를 먼저 확인하고, 종목 코드를 넣으면 기업 요약부터 뉴스 영향, 차트 전망, 최종 결론까지 한 번에 정리해 드립니다.</p>
-  </div>
-</section>
-
 <main class="wrap main">
   <section id="market" aria-label="시장 현황">
     <div class="sec-title"><h2>시장 현황</h2><span class="meta" id="marketMeta"></span></div>
@@ -364,7 +369,7 @@ td.r,th.r{text-align:right}
   </section>
 </main>
 
-<div id="reg" class="regov" hidden><div class="regbox" role="dialog" aria-modal="true" aria-labelledby="regTitle"><div class="reghead"><h2 id="regTitle"></h2><button type="button" class="btn ghost" data-act="regclose">닫기 ✕</button></div><div id="box-aim"></div><div id="box-pos"></div></div></div>
+<div id="reg" class="regov" hidden><div class="regbox" role="dialog" aria-modal="true" aria-labelledby="regTitle"><div class="reghead"><h2 id="regTitle"></h2><button type="button" class="btn ghost" data-act="regclose">닫기 ✕</button></div><div id="box-aim"></div><div id="box-pos"></div><div id="box-rsi" hidden></div></div></div>
 <div id="holder" hidden><div id="closeWrap" class="slot-close"><button id="floatClose" class="float-close" type="button">✕ 닫기</button></div><section class="report" id="report" hidden></section></div>
 
 <script>
@@ -376,6 +381,8 @@ var $ = function(s, r){ return (r||document).querySelector(s); };
 var esc = function(v){ return String(v==null?'':v).replace(/[&<>"']/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); };
 var isNum = function(v){ return typeof v === 'number' && isFinite(v); };
 var toNum = function(v){ if (isNum(v)) return v; if (typeof v === 'string'){ var n = parseFloat(v.replace(/[^0-9.\-]/g,'')); return isFinite(n) ? n : null; } return null; };
+var KO_NAMES={'AAPL':'애플','MSFT':'마이크로소프트','NVDA':'엔비디아','GOOGL':'알파벳 A','GOOG':'알파벳 C','AMZN':'아마존','META':'메타','TSLA':'테슬라','AVGO':'브로드컴','AMD':'AMD','INTC':'인텔','QCOM':'퀄컴','TXN':'텍사스 인스트루먼트','MU':'마이크론','ASML':'ASML','TSM':'TSMC','ARM':'암 홀딩스','SMCI':'슈퍼마이크로컴퓨터','ORCL':'오라클','CRM':'세일즈포스','ADBE':'어도비','NOW':'서비스나우','IBM':'IBM','CSCO':'시스코','PLTR':'팔란티어','SNOW':'스노우플레이크','NET':'클라우드플레어','CRWD':'크라우드스트라이크','PANW':'팔로알토 네트웍스','DDOG':'데이터독','U':'유니티','SHOP':'쇼피파이','UBER':'우버','ABNB':'에어비앤비','DASH':'도어대시','LYFT':'리프트','NFLX':'넷플릭스','DIS':'디즈니','SPOT':'스포티파이','ROKU':'로쿠','SNAP':'스냅','PINS':'핀터레스트','RDDT':'레딧','COIN':'코인베이스','HOOD':'로빈후드','SQ':'블록','PYPL':'페이팔','V':'비자','MA':'마스터카드','JPM':'JP모건','BAC':'뱅크오브아메리카','WFC':'웰스파고','C':'씨티그룹','GS':'골드만삭스','MS':'모건스탠리','BRK-B':'버크셔 해서웨이','BRK.B':'버크셔 해서웨이','BLK':'블랙록','AXP':'아메리칸 익스프레스','WMT':'월마트','COST':'코스트코','TGT':'타겟','HD':'홈디포','LOW':'로우스','NKE':'나이키','SBUX':'스타벅스','MCD':'맥도날드','KO':'코카콜라','PEP':'펩시코','PG':'P&G','JNJ':'존슨앤존슨','PFE':'화이자','MRK':'머크','LLY':'일라이 릴리','ABBV':'애브비','UNH':'유나이티드헬스','NVO':'노보 노디스크','MRNA':'모더나','XOM':'엑슨모빌','CVX':'셰브론','BA':'보잉','LMT':'록히드마틴','RTX':'RTX','CAT':'캐터필러','DE':'디어','GE':'GE','GEV':'GE 버노바','F':'포드','GM':'제너럴모터스','RIVN':'리비안','LCID':'루시드','NIO':'니오','XPEV':'샤오펑','LI':'리오토','BABA':'알리바바','JD':'징둥닷컴','PDD':'핀둬둬','BIDU':'바이두','SONY':'소니','TM':'도요타','T':'AT&T','VZ':'버라이즌','TMUS':'티모바일','IONQ':'아이온큐','RGTI':'리게티 컴퓨팅','OKLO':'오클로','SMR':'뉴스케일 파워','CEG':'컨스텔레이션 에너지','VST':'비스트라 에너지','MSTR':'스트래티지','MARA':'마라톤 디지털','RIOT':'라이엇 플랫폼','GME':'게임스탑','AMC':'AMC 엔터','SOFI':'소파이','AFRM':'어펌','APP':'앱러빈','DKNG':'드래프트킹스','CVNA':'카바나','LULU':'룰루레몬','ONON':'온 홀딩','CELH':'셀시어스','DELL':'델 테크놀로지스','HPQ':'HP','WDC':'웨스턴디지털','STX':'시게이트','LRCX':'램리서치','AMAT':'어플라이드 머티어리얼즈','KLAC':'KLA','MRVL':'마벨','ON':'온세미','NXPI':'NXP','ADI':'아날로그디바이스','MPWR':'모놀리식 파워','SPY':'SPY (S&P500 ETF)','VOO':'뱅가드 S&P500 ETF','IVV':'아이셰어즈 S&P500 ETF','QQQ':'QQQ (나스닥100 ETF)','QQQM':'QQQM (나스닥100 ETF)','DIA':'DIA (다우존스 ETF)','IWM':'IWM (러셀2000 ETF)','VTI':'뱅가드 전체시장 ETF','SCHD':'SCHD (배당성장 ETF)','JEPI':'JEPI (커버드콜 ETF)','JEPQ':'JEPQ (나스닥 커버드콜 ETF)','SOXX':'SOXX (반도체 ETF)','SMH':'SMH (반도체 ETF)','SOXL':'SOXL (반도체 3배 ETF)','SOXS':'SOXS (반도체 인버스 3배)','TQQQ':'TQQQ (나스닥 3배 ETF)','SQQQ':'SQQQ (나스닥 인버스 3배)','UPRO':'UPRO (S&P500 3배 ETF)','SPXL':'SPXL (S&P500 3배 ETF)','TLT':'TLT (미국 장기채 ETF)','IEF':'IEF (미국 중기채 ETF)','GLD':'GLD (금 ETF)','SLV':'SLV (은 ETF)','ARKK':'ARKK (혁신 ETF)','XLK':'XLK (기술 섹터 ETF)','XLF':'XLF (금융 섹터 ETF)','XLE':'XLE (에너지 섹터 ETF)','NVDL':'NVDL (엔비디아 2배 ETF)','TSLL':'TSLL (테슬라 2배 ETF)','BITO':'BITO (비트코인 선물 ETF)','IBIT':'IBIT (비트코인 ETF)'};
+function dn(s){ var k=String(s.symbol||'').toUpperCase(); return KO_NAMES[k]||s.koName||s.name; }
 function nf(v, d){ if(!isNum(v)) return '–'; return v.toLocaleString('ko-KR',{minimumFractionDigits:d,maximumFractionDigits:d}); }
 function money(v, cur){
   if(!isNum(v)) return '–';
@@ -495,8 +502,7 @@ function errorBox(part, e){
   var msg = (e && e.message) || '분석에 실패했습니다.';
   var auth = e && e.auth;
   return '<div class="card"><p>'+esc(msg)+'</p><p style="margin-top:10px">'+
-    (auth?'<button class="btn ghost" data-act="code" type="button">접근 코드 입력</button> ':'')+
-    '<button class="btn ghost" data-act="retry" data-part="'+part+'" type="button">다시 시도</button></p></div>';
+    (auth?'<button class="btn ghost" data-act="code" type="button">접근 코드 입력</button> ':'<span class="muted small">위의 "AI 분석" 버튼을 다시 누르면 처음부터 다시 분석합니다.</span>')+'</p></div>';
 }
 
 function skeleton(s){
@@ -504,10 +510,11 @@ function skeleton(s){
   var t=s.tech, pos=(t.high52>t.low52)?((s.price-t.low52)/(t.high52-t.low52)*100):50;
   var yahoo='https://finance.yahoo.com/quote/'+encodeURIComponent(s.symbol);
   return ''+
-  '<div class="card"><div class="rhead"><div><div class="rname">'+esc(s.name)+'</div><div class="rsym">'+esc(s.symbol)+' · '+esc(s.exchange||'')+' · '+esc(cur||'')+' · 기준 '+dateFull(s.asOf)+' · <a href="'+yahoo+'" target="_blank" rel="noopener">Yahoo ↗</a> · <a href="'+esc(tvUrl(s.symbol))+'" target="_blank" rel="noopener noreferrer">TradingView 차트 ↗</a></div><div style="margin-top:8px"><button class="btn ghost" data-act="runall" type="button">AI 분석 다시 실행</button></div></div>'+
+  '<div class="card"><div class="rhead"><div><div class="rname">'+esc(dn(s))+'</div><div class="rsym">'+(dn(s)!==s.name?esc(s.name)+' · ':'')+esc(s.symbol)+' · '+esc(s.exchange||'')+' · '+esc(cur||'')+' · 기준 '+dateFull(s.asOf)+' · <a href="'+yahoo+'" target="_blank" rel="noopener">Yahoo ↗</a> · <a href="'+esc(tvUrl(s.symbol))+'" target="_blank" rel="noopener noreferrer">TradingView 차트 ↗</a></div></div>'+
     '<div><div class="rprice num">'+money(s.price,cur)+'</div><div class="num '+c+'" style="text-align:right">'+arrow(s.changePct)+' '+signed(s.changePct,2)+'%</div></div></div>'+
     '<div class="range52"><div class="range-labels"><span>52주 최저 <span class="num">'+plain(t.low52,cur)+'</span></span><span>52주 최고 <span class="num">'+plain(t.high52,cur)+'</span></span></div>'+
     '<div class="range-bar"><i style="left:'+pos.toFixed(1)+'%"></i></div></div></div>'+
+  '<div class="card aibar" id="aibar"></div>'+
 
 
 
@@ -643,7 +650,7 @@ function drawChart(s, ol){
 
   out+='<line id="xh" x1="0" x2="0" y1="'+pt+'" y2="'+(H-pb)+'" stroke="var(--muted)" stroke-width="1" style="display:none"/>';
 
-  host.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" id="chartSvg" role="img" aria-label="'+esc(s.name)+' 일봉 차트와 2주 전망">'+out+'</svg><div class="tip" id="chartTip"></div>';
+  host.innerHTML='<svg viewBox="0 0 '+W+' '+H+'" id="chartSvg" role="img" aria-label="'+esc(dn(s))+' 일봉 차트와 2주 전망">'+out+'</svg><div class="tip" id="chartTip"></div>';
 
   var svg=$('#chartSvg'), tip=$('#chartTip'), xh=$('#xh');
   function move(ev){
@@ -768,15 +775,17 @@ function renderConclusion(d){
 }
 
 /* ---------- 실행 흐름 (종목을 탭으로 계속 추가) ---------- */
-function callAI(part, payload){
+function callAI(part, payload, onUsage){
   return fetch('/api/analyze',{method:'POST',headers:{'content-type':'application/json','x-access-code':getCode()},body:JSON.stringify(Object.assign({part:part},payload))})
     .then(function(res){
+      var hit=res.headers&&res.headers.get&&res.headers.get('x-cache')==='HIT'; callAI._hit=hit;
       if(res.status===401){ var e=new Error('AI 분석을 쓰려면 접근 코드가 필요합니다. 오른쪽 위 "접근 코드"에서 입력해 주세요.'); e.auth=true; throw e; }
       return res.text();
     })
     .then(function(txt){
       var j; try{ j=JSON.parse(txt); }catch(e){ throw new Error('서버 응답을 읽지 못했습니다. 잠시 후 다시 시도해 주세요.'); }
       if(!j.ok) throw new Error(j.error||'분석에 실패했습니다.');
+      if(onUsage) onUsage(j.usage&&!callAI._hit?j.usage:{in:0,out:0}, j.model, !!callAI._hit);
       return j.data;
     });
 }
@@ -803,7 +812,7 @@ var LOAD_MSG={ company:'기업 정보를 정리하는 중… (보통 5~15초)', 
 
 function newReport(s){ return { stock:s, ai:{}, status:{}, err:{}, conclusion:null, cStatus:null, cErr:null }; }
 function isActive(rep){ return state.active===rep.stock.symbol && state.reports[rep.stock.symbol]===rep; }
-function idleBox(){ return '<div class="card"><p class="muted">AI 분석을 아직 실행하지 않았습니다. AI 호출 비용이 들어서, 저장된 종목은 누르기 전에는 돌리지 않습니다.</p><p style="margin-top:10px"><button class="btn ghost" data-act="runall" type="button">AI 분석 실행</button></p></div>'; }
+function idleBox(){ return '<div class="card"><p class="muted">위의 "AI 분석" 버튼을 한 번 누르면 기업 요약부터 결론까지 한꺼번에 채워집니다.</p></div>'; }
 
 /* ---------- 계정 로그인 · 서버 저장 (종목·매수 기록이 기기 데이터 삭제로 사라지지 않게) ---------- */
 var TOKEN_KEY='sd_token', USER_KEY='sd_user', LABEL_KEY='sd_user_label';
@@ -911,7 +920,7 @@ function doLogout(){
   var t=authToken();
   (t?pushNow(false):Promise.resolve()).then(function(){ return authFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'logout'})}).catch(function(){}); }).then(function(){
     [WATCH_KEY,ACTIVE_KEY,POS_KEY,'sd_aim',FX_KEY].forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
-    forgetLogin(''); state.pos={}; state.aims={}; applyData({watch:[],pos:{},active:''}); authMsg('로그아웃했습니다. 다시 구글로 로그인하면 종목과 매수 기록이 돌아옵니다.');
+    forgetLogin(''); state.pos={}; state.aims={}; state.sells={}; applyData({watch:[],pos:{},active:''}); authMsg('로그아웃했습니다. 다시 구글로 로그인하면 종목과 매수 기록이 돌아옵니다.');
   });
 }
 $('#authBtn').addEventListener('click',function(){ var p=$('#authPanel'); p.classList.toggle('open'); if(p.classList.contains('open')) googleSetup(); });
@@ -1026,15 +1035,17 @@ function addLot(rep){
 
 /* ---------- 매수 에임가 (서버 KV에 저장, 5분마다 확인해 도달하면 슬랙 알림) ---------- */
 var AIM_KEY='sd_aim';
-state.reg=null; state.aims={}; state.aimServer=null; state.aimErr=''; state.slackOn=null;
+state.reg=null; state.sells={}; state.aims={}; state.aimServer=null; state.aimErr=''; state.slackOn=null;
 try{ var _a=JSON.parse(lsGet(AIM_KEY)||'{}'); if(_a&&typeof _a==='object'&&!Array.isArray(_a)) state.aims=_a; }catch(e){}
-function saveAimCache(){ lsSet(AIM_KEY, JSON.stringify(state.aims)); }
+try{ var _s=JSON.parse(lsGet('sd_sell')||'{}'); if(_s&&typeof _s==='object'&&!Array.isArray(_s)) state.sells=_s; }catch(e){}
+function saveAimCache(){ lsSet(AIM_KEY, JSON.stringify(state.aims)); lsSet('sd_sell', JSON.stringify(state.sells)); }
+function curSide(){ return state.regKind==='sell'?'sell':'buy'; }
 function aimFetch(path,opt){
   opt=opt||{}; opt.headers=Object.assign({'content-type':'application/json','x-access-code':getCode()},authHeaders(),opt.headers||{});
   return fetch(path,opt).then(function(r){ return r.json().then(function(j){ return {status:r.status,j:j}; },function(){ return {status:r.status,j:{}}; }); });
 }
-function aimStatus(sym,s){
-  var a=state.aims[sym]; if(!a||!s||!isNum(s.price)) return null;
+function aimStatus(sym,s,side){
+  var a=(side==='sell'?state.sells:state.aims)[sym]; if(!a||!s||!isNum(s.price)) return null;
   var hit=a.dir==='down'?s.price<=a.aim:s.price>=a.aim;
   return { a:a, remain:(a.aim/s.price-1)*100, reached:!!a.alertedAt||hit, sent:!!a.alertedAt };
 }
@@ -1042,8 +1053,8 @@ function loadAims(){
   if(!authToken()){ state.aimServer=false; state.aimErr='로그인이 필요합니다. 오른쪽 위 "구글 로그인"에서 로그인하면 슬랙 알림을 쓸 수 있습니다.'; renderList(); var r0=state.reports[state.reg]; if(r0) renderAim(r0); return Promise.resolve(); }
   return aimFetch('/api/aim').then(function(x){
     if(x.status===200&&x.j.ok){
-      var m={}; (x.j.items||[]).forEach(function(i){ m[i.symbol]=i; });
-      state.aims=m; state.slackOn=!!x.j.slack; state.aimServer=true; state.aimErr=''; saveAimCache();
+      var m={}, m2={}; (x.j.items||[]).forEach(function(i){ if(i.side==='sell') m2[i.symbol]=i; else m[i.symbol]=i; });
+      state.sells=m2; state.aims=m; state.slackOn=!!x.j.slack; state.aimServer=true; state.aimErr=''; saveAimCache();
     } else { state.aimServer=false; state.aimErr=(x.status===401?'로그인이 필요합니다. 오른쪽 위 "구글 로그인"에서 로그인하면 슬랙 알림을 쓸 수 있습니다.':(x.j.error||'알림 서버에 연결하지 못했습니다.')); }
   }).catch(function(){ state.aimServer=false; state.aimErr='알림 서버에 연결하지 못했습니다.'; })
   .then(function(){ renderList(); var rep=state.reports[state.reg]; if(rep) renderAim(rep); });
@@ -1051,30 +1062,30 @@ function loadAims(){
 function hhmm(t){ var d=new Date(t+9*3600*1000); return (d.getUTCMonth()+1)+'/'+d.getUTCDate()+' '+('0'+d.getUTCHours()).slice(-2)+':'+('0'+d.getUTCMinutes()).slice(-2); }
 function renderAim(rep){
   var box=$('#box-aim'); if(!box||state.reg!==rep.stock.symbol||state.reports[state.reg]!==rep) return;
-  var s=rep.stock, cur=s.currency, sym=s.symbol, st=aimStatus(sym,s), h='';
+  var side=curSide(), W=side==='sell'?'매도':'매수', s=rep.stock, cur=s.currency, sym=s.symbol, st=aimStatus(sym,s,side), h='';
   var keep=($('#aimPx')||{}).value||'';
   h+='<div class="aim-st"><span class="muted">현재가 <b class="num" style="color:var(--ink)">'+money(s.price,cur)+'</b></span>';
   if(st){
-    h+='<span>에임가 <b class="num">'+money(st.a.aim,cur)+'</b></span>'+
-      (st.reached?'<span class="pill good">🎯 에임가 도달'+(st.sent?' · 슬랙 발송 '+hhmm(st.a.alertedAt):'')+'</span>'
+    h+='<span>'+W+' 에임가 <b class="num">'+money(st.a.aim,cur)+'</b></span>'+
+      (st.reached?'<span class="pill good">'+(side==='sell'?'🏁':'🎯')+' '+W+' 에임가 도달'+(st.sent?' · 슬랙 발송 '+hhmm(st.a.alertedAt):'')+'</span>'
         :'<span class="pill aim">'+(st.a.dir==='down'?'앞으로 ':'앞으로 ')+signed(st.remain,2)+'% '+(st.a.dir==='down'?'내려오면 알림':'올라가면 알림')+'</span>');
-  } else h+='<span class="muted">아직 에임가가 없습니다.</span>';
+  } else h+='<span class="muted">아직 '+W+' 에임가가 없습니다.</span>';
   h+='</div>';
-  h+='<form class="pos-form" id="aimForm" novalidate style="margin-top:0"><label>매수 에임가 ('+esc(cur||'')+')<input type="text" inputmode="decimal" id="aimPx" placeholder="예: '+(cur==='KRW'?nf(Math.round(s.price*0.9),0):nf(s.price*0.9,2))+'" value="'+esc(keep)+'"></label><button class="btn" type="submit">'+(st?'에임가 변경':'에임가 설정')+'</button></form><div id="aimErr"></div>';
-  h+='<div class="aim-acts">'+(st?'<button class="btn ghost" type="button" data-act="aimdel">에임가 해제</button>':'')+'<button class="btn ghost" type="button" data-act="aimtest">슬랙 테스트 메시지 보내기</button></div>';
+  h+='<form class="pos-form" id="aimForm" novalidate style="margin-top:0"><label>'+W+' 에임가 ('+esc(cur||'')+')<input type="text" inputmode="decimal" id="aimPx" placeholder="예: '+(cur==='KRW'?nf(Math.round(s.price*(side==='sell'?1.1:0.9)),0):nf(s.price*(side==='sell'?1.1:0.9),2))+'" value="'+esc(keep)+'"></label><button class="btn" type="submit">'+(st?W+' 에임가 변경':W+' 에임가 설정')+'</button></form><div id="aimErr"></div>';
+  h+='<div class="aim-acts">'+(st?'<button class="btn ghost" type="button" data-act="aimdel">'+W+' 에임가 해제</button>':'')+'<button class="btn ghost" type="button" data-act="aimtest">슬랙 테스트 메시지 보내기</button></div>';
   if(state.aimServer===false) h+='<div class="aim-warn">⚠ '+esc(state.aimErr||'알림 서버에 연결하지 못했습니다.')+' 이 상태에서는 목록의 남은 % 표시만 되고, 슬랙 알림은 가지 않습니다.</div>';
   else if(state.slackOn===false) h+='<div class="aim-warn">⚠ 슬랙 연결(SLACK_BOT_TOKEN)이 아직 설정되지 않아 도달해도 알림이 가지 않습니다.</div>';
   h+='<p class="muted small" style="margin:12px 0 0">서버가 5분마다 현재가를 확인합니다. 에임가에 닿으면 슬랙으로 한 번 알리고, 이 화면을 닫아 두어도 동작합니다. 에임가를 다시 설정하면 알림이 다시 켜집니다. 장이 열려 있을 때만 가격이 바뀝니다.</p>';
   box.innerHTML='<div class="card">'+h+'</div>';
 }
 function setAim(rep){
-  var err=$('#aimErr'), v=parseAmt($('#aimPx').value), s=rep.stock;
+  var side=curSide(), M=side==='sell'?state.sells:state.aims, err=$('#aimErr'), v=parseAmt($('#aimPx').value), s=rep.stock;
   if(!v){ err.innerHTML='<div class="err">에임가를 숫자로 입력해 주세요.</div>'; return; }
   var btn=document.querySelector('#aimForm .btn'); btn.disabled=true;
-  aimFetch('/api/aim',{method:'POST',body:JSON.stringify({symbol:s.symbol,name:s.name,currency:s.currency,aim:v,price:s.price})}).then(function(x){
-    if(x.status===200&&x.j.ok){ state.aims[s.symbol]=x.j.item; state.aimServer=true; state.aimErr=''; }
+  aimFetch('/api/aim',{method:'POST',body:JSON.stringify({symbol:s.symbol,name:dn(s),currency:s.currency,aim:v,price:s.price,side:side})}).then(function(x){
+    if(x.status===200&&x.j.ok){ M[s.symbol]=x.j.item; state.aimServer=true; state.aimErr=''; }
     else {
-      state.aims[s.symbol]={symbol:s.symbol,name:s.name,currency:s.currency,aim:v,dir:v<=s.price?'down':'up',alertedAt:null,local:true};
+      M[s.symbol]={symbol:s.symbol,side:side,name:dn(s),currency:s.currency,aim:v,dir:side==='sell'?'up':v<=s.price?'down':'up',alertedAt:null,local:true};
       state.aimServer=false; state.aimErr=x.status===401?'로그인이 필요합니다. 오른쪽 위 "구글 로그인"에서 로그인하면 슬랙 알림을 쓸 수 있습니다.':(x.j.error||'알림 서버에 저장하지 못했습니다.');
     }
     saveAimCache(); $('#aimPx').value=''; renderAim(rep); renderList();
@@ -1085,22 +1096,56 @@ function openReg(sym,kind){
   var rep=state.reports[sym]; if(!rep||!rep.stock) return;
   state.reg=sym; state.regKind=kind; state.editLot=null;
   var s=rep.stock;
-  $('#regTitle').textContent=(kind==='aim'?'🎯 매수 에임가 · ':'💰 내 수익률 · ')+s.name+' ('+s.symbol.replace(/\.(KS|KQ)$/,'')+')';
-  $('#box-aim').hidden=kind!=='aim'; $('#box-pos').hidden=kind!=='pos';
+  $('#regTitle').textContent=(kind==='aim'?'🎯 매수 에임가 · ':kind==='sell'?'🏁 매도 에임가 · ':kind==='rsi'?'📈 RSI 변화 · ':'💰 내 수익률 · ')+dn(s)+' ('+s.symbol.replace(/\.(KS|KQ)$/,'')+')';
+  $('#box-aim').hidden=!(kind==='aim'||kind==='sell'); $('#box-pos').hidden=kind!=='pos'; $('#box-rsi').hidden=kind!=='rsi';
   $('#reg').hidden=false; document.body.classList.add('modal-open');
-  if(kind==='aim'){ renderAim(rep); if(state.aimServer===null&&authToken()) loadAims(); } else { renderPosition(rep); ensureFxNow(rep); }
+  if(kind==='rsi'){ renderRsi(rep); }
+  else if(kind==='aim'||kind==='sell'){ renderAim(rep); if(state.aimServer===null&&authToken()) loadAims(); } else { renderPosition(rep); ensureFxNow(rep); }
   var f=document.querySelector('#reg input'); if(f) try{ f.focus(); }catch(e){}
 }
 function closeReg(){ state.editLot=null; $('#reg').hidden=true; document.body.classList.remove('modal-open'); state.reg=null; renderList(); }
 document.addEventListener('keydown', function(ev){ if(ev.key==='Escape'&&!$('#reg').hidden){ ev.stopPropagation(); closeReg(); } }, true);
 
+/* ---------- RSI 변화: 일봉 종가로 날짜별 RSI를 계산해 어제와 비교 ---------- */
+function rsiHistory(s){
+  if(s.rsiHist&&s.rsiHist.length) return s.rsiHist;
+  var rows=s.rows||[], n=14, out=[]; if(rows.length<=n+1) return out;
+  var c=rows.map(function(r){ return r.c; }), g=0, l=0, i;
+  for(i=1;i<=n;i++){ var d=c[i]-c[i-1]; if(d>=0) g+=d; else l-=d; }
+  var ag=g/n, al=l/n;
+  function val(){ return al===0?100:100-100/(1+ag/al); }
+  out.push({t:rows[n].t,v:val()});
+  for(i=n+1;i<c.length;i++){ var e=c[i]-c[i-1]; ag=(ag*(n-1)+(e>0?e:0))/n; al=(al*(n-1)+(e<0?-e:0))/n; out.push({t:rows[i].t,v:val()}); }
+  return out.slice(-40).map(function(x){ return {t:x.t,v:Math.round(x.v*10)/10}; });
+}
+function rsiDelta(s){ var h=rsiHistory(s); if(h.length<2) return null; return { now:h[h.length-1].v, d:Math.round((h[h.length-1].v-h[h.length-2].v)*10)/10 }; }
+function renderRsi(rep){
+  var box=$('#box-rsi'); if(!box||state.reg!==rep.stock.symbol||state.reports[state.reg]!==rep) return;
+  var s=rep.stock, h=rsiHistory(s), h2='';
+  if(!h.length){ box.innerHTML='<div class="card"><p class="muted">RSI를 계산할 데이터가 부족합니다.</p></div>'; return; }
+  var last=h[h.length-1], dd=rsiDelta(s);
+  h2+='<div class="aim-st"><span class="muted">현재 RSI(14일) <b class="num" style="color:var(--ink)">'+nf(last.v,1)+'</b></span><span class="pill neutral">'+esc(rsiLabel(last.v))+'</span>'+
+    (dd?'<span class="'+dir(dd.d)+'" style="font-weight:800">어제보다 '+(dd.d>0?'▲ ':dd.d<0?'▼ ':'')+nf(Math.abs(dd.d),1)+(dd.d>0?' 상승':dd.d<0?' 하락':' 변화 없음')+'</span>':'')+'</div>';
+  h2+='<div style="margin:6px 0 14px">'+sparkline(h.map(function(x){ return x.v; }), 'var(--accent)')+'</div>';
+  h2+='<div class="tblwrap"><table style="min-width:360px"><thead><tr><th>날짜</th><th>RSI</th><th>전일 대비</th><th>구간</th></tr></thead><tbody>';
+  for(var i=h.length-1;i>=Math.max(0,h.length-30);i--){
+    var p=i>0?Math.round((h[i].v-h[i-1].v)*10)/10:null;
+    h2+='<tr><td class="num">'+dateFull(h[i].t)+'</td><td class="num"><b>'+nf(h[i].v,1)+'</b></td><td class="num '+(p==null?'':dir(p))+'">'+(p==null?'–':(p>0?'▲ ':p<0?'▼ ':'')+signed(p,1))+'</td><td class="muted small">'+esc(rsiLabel(h[i].v))+'</td></tr>';
+  }
+  h2+='</tbody></table></div><p class="muted small" style="margin:10px 0 0">장이 끝난 날마다 종가로 RSI(14일)를 계산한 값입니다. 최근 30거래일을 보여드리며, 따로 저장하지 않아도 날짜별 기록이 항상 채워집니다.</p>';
+  box.innerHTML='<div class="card">'+h2+'</div>';
+}
 function rowHtml(sym,i){
   var r=state.reports[sym], s=r&&r.stock, on=sym===state.active;
   var myPill='', pt0=null;
   if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price,s.currency); if(pt.ret!=null&&pt.cost){ pt0=pt; myPill=1; } }
   var myLine=''; if(myPill){ myLine='<span class="reg-pl '+dir(pt0.ret)+'">'+signed(pt0.ret,2)+'%<span class="amt"><br>'+swon(pt0.pl)+'</span></span>'; }
-  var aimPill='', ai=s?aimStatus(sym,s):null;
-  if(ai) aimPill=ai.reached?'<span class="pill good" title="매수 에임가 도달">🎯 에임가 도달</span>':'<span class="pill aim" title="매수 에임가 '+esc(money(ai.a.aim,s.currency))+'">🎯 에임가까지 '+signed(ai.remain,1)+'%</span>';
+  var rd=s?rsiDelta(s):null;
+  var rsiLine=rd?'<span class="reg-pl '+dir(rd.d)+'">'+(rd.d>0?'▲':rd.d<0?'▼':'')+nf(Math.abs(rd.d),1)+'<span class="amt">  어제보다</span></span>':'';
+  var aimPill='', ai=s?aimStatus(sym,s,'buy'):null;
+  if(ai) aimPill=ai.reached?'<span class="pill good" title="매수 에임가 도달">🎯 매수 에임가 도달</span>':'<span class="pill aim" title="매수 에임가 '+esc(money(ai.a.aim,s.currency))+'">🎯 매수 '+signed(ai.remain,1)+'%</span>';
+  var si=s?aimStatus(sym,s,'sell'):null;
+  if(si) aimPill+=si.reached?'<span class="pill good" title="매도 에임가 도달">🏁 매도 에임가 도달</span>':'<span class="pill aim" title="매도 에임가 '+esc(money(si.a.aim,s.currency))+'">🏁 매도 '+signed(si.remain,1)+'%</span>';
   var code=sym.replace(/\.(KS|KQ)$/,'');
   var busy=r&&(PARTS.some(function(p){ return r.status[p]==='loading'; })||r.cStatus==='loading');
   var closes=s?s.rows.slice(-40).map(function(x){ return x.c; }):[];
@@ -1111,7 +1156,7 @@ function rowHtml(sym,i){
   return '<div class="srow'+(on?' on':'')+'"><div class="srow-head">'+
     '<button type="button" class="srow-drag" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 순위 '+(i+1)+'위, 위아래 방향키 또는 끌어서 순서 변경" title="끌어서 순위 변경"><span class="rank">'+(i+1)+'</span><span class="grip" aria-hidden="true">⠿</span></button>'+
     '<button type="button" class="srow-btn" data-act="tab" data-sym="'+esc(sym)+'" aria-expanded="'+(on?'true':'false')+'">'+
-      '<span class="srow-id"><span class="srow-name">'+esc(s?s.name:code)+'</span><b>'+esc(code)+'</b></span>'+
+      '<span class="srow-id"><span class="srow-name">'+esc(s?dn(s):code)+'</span><b>'+esc(code)+'</b></span>'+
       '<span class="srow-px num">'+(s?money(s.price,s.currency):'–')+'</span>'+
       '<span class="srow-chg num '+(s?dir(s.changePct):'flat')+'">'+(s?arrow(s.changePct)+' '+signed(s.changePct,2)+'%':'')+'</span>'+
       '<span class="srow-chips">'+aimPill+(bias?'<span class="pill '+biasCls+'">차트 '+esc(bias)+'</span>':'')+stance+(busy?'<span class="pulse sm" title="분석 중"></span>':'')+'</span>'+
@@ -1119,7 +1164,9 @@ function rowHtml(sym,i){
       '<span class="chev" aria-hidden="true">'+(on?'▴':'▾')+'</span>'+
     '</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="pos" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 내역·수익률 등록" aria-label="'+esc(code)+' 매수 내역 등록">'+'<span class="reg-t">💰<span class="rl"> 수익률</span></span>'+myLine+'</button>'+
-    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="aim" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 에임가 등록" aria-label="'+esc(code)+' 매수 에임가 등록">🎯<span class="rl"> 에임가</span></button>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="aim" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 에임가 등록" aria-label="'+esc(code)+' 매수 에임가 등록">🎯<span class="rl"> 매수에임가</span></button>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="sell" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 에임가 등록" aria-label="'+esc(code)+' 매도 에임가 등록">🏁<span class="rl"> 매도에임가</span></button>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="rsi" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="RSI 변화 보기" aria-label="'+esc(code)+' RSI 변화 보기"><span class="reg-t">📈<span class="rl"> RSI '+(rd?nf(rd.now,0):'')+'</span></span>'+rsiLine+'</button>'+
     '<a class="srow-tv" href="'+esc(tvUrl(sym))+'" target="_blank" rel="noopener noreferrer" title="트레이딩뷰 차트로 이동" aria-label="'+esc(code)+' 트레이딩뷰 차트 열기">차트<span class="rl"></span> ↗</a>'+
     '<button type="button" class="srow-x" data-act="close" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 삭제">×</button></div>'+
     '<div class="slot" data-slot="'+esc(sym)+'"></div></div>';
@@ -1149,7 +1196,27 @@ function collapse(){
   saveWatch(); renderList();
 }
 
+/* AI 분석 버튼 1개: 한 번 누르면 기업 요약 → 뉴스 → 2주 전망 → 결론까지 모두 채운다 */
+function costKrw(u){
+  var m=String(u.model||''), pr=/sonnet/i.test(m)?[3,15]:/opus/i.test(m)?[5,25]:[1,5];
+  var fx=isNum(state.fxNow.USD)?state.fxNow.USD:1400;
+  return (u.in*pr[0]+u.out*pr[1])/1e6*fx;
+}
+function renderAiBar(rep){
+  var box=$('#aibar'); if(!box||!isActive(rep)) return;
+  var busy=PARTS.some(function(p){ return rep.status[p]==='loading'||rep.status[p]==='queued'; });
+  var done=PARTS.some(function(p){ return rep.status[p]==='ok'; })&&!busy;
+  var h='<button class="btn" type="button" data-act="runall"'+(busy?' disabled':'')+'>'+(busy?'AI 분석 중…':done?'✨ AI 분석 다시 실행':'✨ AI 분석')+'</button><div class="aibar-t">';
+  if(busy) h+='<b>기업 요약 → 뉴스 → 2주 전망 → 결론</b>을 한꺼번에 분석하는 중입니다. 보통 10~30초 걸립니다.';
+  else if(rep.ran&&rep.usage&&done){
+    var k=costKrw(rep.usage);
+    h+='이번 분석 비용 <b>'+(rep.usage.hit>=3?'0원 (최근 결과 재사용)':'약 '+nf(Math.max(1,Math.round(k)),0)+'원')+'</b>'+(rep.usage.hit&&rep.usage.hit<3?' · 일부는 최근 결과 재사용':'')+' · 다시 실행하면 이 정도가 또 듭니다.';
+  } else h+='한 번 누르면 <b>기업 요약 → 뉴스 → 2주 전망 → 결론</b>까지 모두 나옵니다. 예상 비용: <b>종목당 약 20~35원</b> (실제 금액은 분석 후 표시)';
+  h+='</div>';
+  box.innerHTML=h;
+}
 function paintPart(rep, p){
+  renderAiBar(rep);
   if(!isActive(rep)) return;
   var box=$('#box-'+p); if(!box) return;
   var st=rep.status[p];
@@ -1161,6 +1228,7 @@ function paintPart(rep, p){
   else box.innerHTML=idleBox();
 }
 function paintConclusion(rep){
+  renderAiBar(rep);
   if(!isActive(rep)) return;
   var box=$('#box-conclusion'); if(!box) return;
   if(rep.cStatus==='ok'){ renderConclusion(rep.conclusion); }
@@ -1174,11 +1242,12 @@ function show(sym){
   var rep=state.reports[sym]; if(!rep) return;
   state.active=sym; saveWatch(); renderList();
   var s=rep.stock, root=$('#report');
-  document.title=s.name+' · 종목 분석 데스크';
+  document.title=dn(s)+' · 종목 분석 데스크';
   root.innerHTML=skeleton(s); root.hidden=false;
   renderIndicators(s); drawChart(s, rep.status.outlook==='ok'?rep.ai.outlook:null);
   PARTS.forEach(function(p){ paintPart(rep,p); });
   paintConclusion(rep);
+  renderAiBar(rep);
   resolvePending(rep);
 }
 
@@ -1189,7 +1258,7 @@ function runPart(part, rep){
   if(part==='outlook'){ payload.price=s.price; payload.tech=compactTech(s.tech); }
   rep.status[part]='loading'; delete rep.err[part];
   paintPart(rep,part); renderList();
-  return callAI(part,payload).then(function(d){
+  return callAI(part,payload,function(u,model,hit){ rep.usage=rep.usage||{in:0,out:0,model:model,hit:0}; rep.usage.in+=u.in||0; rep.usage.out+=u.out||0; rep.usage.model=model||rep.usage.model; if(hit) rep.usage.hit++; }).then(function(d){
     if(state.reports[s.symbol]!==rep) return;
     rep.ai[part]=d; rep.status[part]='ok'; paintPart(rep,part);
   }).catch(function(e){
@@ -1241,6 +1310,7 @@ function runConclusion(rep){
 function allSettled(rep){ return PARTS.every(function(p){ return rep.status[p]==='ok'||rep.status[p]==='error'; }); }
 
 function runAll(rep){
+  rep.usage={in:0,out:0,model:null,hit:0}; rep.ran=true;
   rep.cStatus=null; rep.conclusion=null; paintConclusion(rep);
   return Promise.all(PARTS.map(function(p){ return runPart(p,rep); })).then(function(){
     if(state.reports[rep.stock.symbol]===rep && allSettled(rep)) runConclusion(rep);
@@ -1293,7 +1363,6 @@ function analyze(raw){
   }, Promise.resolve()).then(function(){
     while(state.order.length>MAX_TABS){ var old=state.order.shift(); if(old===state.active) state.active=null; delete state.reports[old]; }
     if(firstSym && state.reports[firstSym]){
-      todo.forEach(function(rep){ if(state.reports[rep.stock.symbol]===rep) queueAI(rep); });
       show(firstSym);
       $('#sym').value=failed.join(', ');
       $('#report').scrollIntoView({behavior:'smooth',block:'start'});
@@ -1337,8 +1406,8 @@ document.addEventListener('click', function(ev){
   }
   if(!rep) return;
   if(act==='aimdel'){
-    var as=rep.stock.symbol; delete state.aims[as]; saveAimCache(); renderAim(rep); renderList();
-    aimFetch('/api/aim?symbol='+encodeURIComponent(as),{method:'DELETE'}).catch(function(){}); return;
+    var sd=curSide(), as=rep.stock.symbol; delete (sd==='sell'?state.sells:state.aims)[as]; saveAimCache(); renderAim(rep); renderList();
+    aimFetch('/api/aim?symbol='+encodeURIComponent(as)+'&side='+sd,{method:'DELETE'}).catch(function(){}); return;
   }
   if(act==='aimtest'){
     var eb=$('#aimErr'); el.disabled=true; eb.innerHTML='<p class="muted small">보내는 중…</p>';

@@ -8,7 +8,7 @@ import { json, yahooChart } from '../_lib/util.js';
 import { getUser } from '../_lib/auth.js';
 import { sendSlack, slackConfigured } from '../_lib/slack.js';
 
-const KEY = (u, s) => `t:${u}:${s}`;
+const KEY = (u, s, side) => (side === 'sell' ? `t:${u}:${s}~sell` : `t:${u}:${s}`);
 const SYM = /^[A-Z0-9.\-^=]{1,16}$/;
 
 const fmt = (v, cur) => {
@@ -52,7 +52,7 @@ export async function onRequest({ request, env }) {
   if (request.method === 'DELETE') {
     const symbol = (url.searchParams.get('symbol') || '').trim().toUpperCase();
     if (!SYM.test(symbol)) return json({ ok: false, error: '종목 코드가 올바르지 않습니다.' }, 400);
-    await env.ALERTS.delete(KEY(user, symbol));
+    await env.ALERTS.delete(KEY(user, symbol, url.searchParams.get('side') === 'sell' ? 'sell' : 'buy'));
     return json({ ok: true });
   }
 
@@ -69,17 +69,19 @@ export async function onRequest({ request, env }) {
     if (!SYM.test(symbol)) return json({ ok: false, error: '종목 코드가 올바르지 않습니다.' }, 400);
     if (!(aim > 0) || !Number.isFinite(aim)) return json({ ok: false, error: '에임가를 0보다 큰 숫자로 입력해 주세요.' }, 400);
     if (!(base > 0)) return json({ ok: false, error: '현재가를 확인하지 못했습니다.' }, 400);
+    const side = b.side === 'sell' ? 'sell' : 'buy';
     const item = {
       user,
+      side,
       symbol,
       name: String(b.name || symbol).slice(0, 80),
       currency: String(b.currency || '').slice(0, 8),
       aim,
-      dir: aim <= base ? 'down' : 'up', // 현재가보다 낮게 잡으면 "내려오면" 알림, 높게 잡으면 "올라오면" 알림
+      dir: side === 'sell' ? 'up' : aim <= base ? 'down' : 'up', // 현재가보다 낮게 잡으면 "내려오면" 알림, 높게 잡으면 "올라오면" 알림
       createdAt: Date.now(),
       alertedAt: null,
     };
-    await env.ALERTS.put(KEY(user, symbol), JSON.stringify(item));
+    await env.ALERTS.put(KEY(user, symbol, side), JSON.stringify(item));
     return json({ ok: true, item });
   }
   return json({ ok: false, error: '지원하지 않는 요청입니다.' }, 405);
@@ -105,10 +107,10 @@ export async function checkAll(env) {
     if (!hit) continue;
     const code = it.symbol.replace(/\.(KS|KQ)$/, '');
     const text =
-      `🎯 *매수 에임가 도달!* ${it.name} (${code})\n` +
-      `현재가 ${fmt(p, it.currency)} ${it.dir === 'down' ? '≤' : '≥'} 에임가 ${fmt(it.aim, it.currency)}\n` +
+      `${it.side === 'sell' ? '💰 *매도 에임가 도달!*' : '🎯 *매수 에임가 도달!*'} ${it.name} (${code})\n` +
+      `현재가 ${fmt(p, it.currency)} ${it.dir === 'down' ? '≤' : '≥'} ${it.side === 'sell' ? '매도' : '매수'} 에임가 ${fmt(it.aim, it.currency)}\n` +
       `차트: https://www.tradingview.com/chart/?symbol=${encodeURIComponent(/^\d{6}\.(KS|KQ)$/.test(it.symbol) ? 'KRX:' + code : it.symbol.replace(/-/g, '.'))}`;
     const r = await sendSlack(env, text);
-    if (r.ok) await env.ALERTS.put(KEY(it.user || '_', it.symbol), JSON.stringify({ ...it, alertedAt: Date.now(), alertedPrice: p }));
+    if (r.ok) await env.ALERTS.put(KEY(it.user || '_', it.symbol, it.side), JSON.stringify({ ...it, alertedAt: Date.now(), alertedPrice: p }));
   }
 }

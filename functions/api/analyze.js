@@ -195,7 +195,7 @@ function extractJson(text) {
 }
 
 // 결과는 submit_report 도구 입력(API가 JSON 문법을 보장)으로 받는다. 안 쓰면 본문에서 JSON을 찾고, 그것도 안 되면 제출을 강제한다.
-async function callClaude(env, { user, searches, maxTokens }, today) {
+async function callClaude(env, { user, searches, maxTokens }, today, usage) {
   const messages = [{ role: 'user', content: user }];
   const tools = [];
   if (searches) tools.push({ type: env.WEB_SEARCH_TOOL || 'web_search_20250305', name: 'web_search', max_uses: searches }); // 절약 모드에서는 searches가 없다
@@ -223,6 +223,7 @@ async function callClaude(env, { user, searches, maxTokens }, today) {
       throw new Error(`Claude API ${res.status}: ${t.slice(0, 300)}`);
     }
     const data = await res.json();
+    if (usage && data.usage) { usage.in += (data.usage.input_tokens || 0) + (data.usage.cache_creation_input_tokens || 0) + (data.usage.cache_read_input_tokens || 0); usage.out += data.usage.output_tokens || 0; }
     const blocks = data.content || [];
 
     const sub = blocks.find((b) => b.type === 'tool_use' && b.name === 'submit_report');
@@ -280,8 +281,9 @@ export async function onRequestPost(context) {
     const beat = setInterval(() => writer.write(enc.encode(' ')).catch(() => {}), 8000);
     let out;
     try {
-      const data = await callClaude(env, spec, today);
-      out = JSON.stringify({ ok: true, data, generatedAt: Date.now() });
+      const usage = { in: 0, out: 0 };
+      const data = await callClaude(env, spec, today, usage);
+      out = JSON.stringify({ ok: true, data, generatedAt: Date.now(), usage, model: env.ANTHROPIC_MODEL || 'claude-haiku-4-5' });
       if (ttl) {
         waitUntil(
           caches.default.put(

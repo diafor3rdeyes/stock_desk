@@ -111,6 +111,25 @@ export function rsi(closes, n = 14) {
   return 100 - 100 / (1 + ag / al);
 }
 
+// 날짜별 Wilder RSI (마지막 keep개)
+export function rsiSeries(rows, n = 14, keep = 40) {
+  const out = [];
+  if (!rows || rows.length <= n) return out;
+  const c = rows.map((r) => r.c);
+  let gain = 0, loss = 0;
+  for (let i = 1; i <= n; i++) { const d = c[i] - c[i - 1]; if (d >= 0) gain += d; else loss -= d; }
+  let ag = gain / n, al = loss / n;
+  const val = () => (al === 0 ? 100 : 100 - 100 / (1 + ag / al));
+  out.push({ t: rows[n].t, v: val() });
+  for (let i = n + 1; i < c.length; i++) {
+    const d = c[i] - c[i - 1];
+    ag = (ag * (n - 1) + (d > 0 ? d : 0)) / n;
+    al = (al * (n - 1) + (d < 0 ? -d : 0)) / n;
+    out.push({ t: rows[i].t, v: val() });
+  }
+  return out.slice(-keep).map((x) => ({ t: x.t, v: Math.round(x.v * 10) / 10 }));
+}
+
 function stdev(a) {
   if (a.length < 2) return 0;
   const m = a.reduce((s, v) => s + v, 0) / a.length;

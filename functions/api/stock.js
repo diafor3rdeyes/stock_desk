@@ -1,5 +1,24 @@
 // GET /api/stock?symbol=005930  또는  ?symbol=NVDA — 시세·차트·기술적 지표
-import { json, symbolCandidates, yahooChart, computeTech } from '../_lib/util.js';
+import { json, symbolCandidates, yahooChart, computeTech, rsiSeries } from '../_lib/util.js';
+
+async function naverKoName(sym) {
+  const m = /^(\d{6})\.(KS|KQ)$/.exec(sym);
+  if (!m) return null;
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 2500);
+    const r = await fetch(`https://ac.stock.naver.com/ac?q=${m[1]}&target=stock`, { signal: ctrl.signal, headers: { 'User-Agent': 'Mozilla/5.0', Accept: 'application/json' } });
+    clearTimeout(to);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const it = j && j.items && j.items[0];
+    if (!it) return null;
+    if (typeof it.name === 'string') return it.name;
+    if (Array.isArray(it) && Array.isArray(it[0]) && typeof it[0][0] === 'string') return it[0][0];
+    if (Array.isArray(it) && typeof it[0] === 'string') return it[0];
+  } catch (e) { /* 영문 이름 유지 */ }
+  return null;
+}
 
 export async function onRequestGet({ request }) {
   const input = new URL(request.url).searchParams.get('symbol') || '';
@@ -29,6 +48,7 @@ export async function onRequestGet({ request }) {
   const n = rows.length;
   const prev = n > 1 ? rows[n - 2].c : meta.chartPreviousClose;
   const chartRows = rows.slice(-130);
+  const koName = await naverKoName(symbol);
 
   return json(
     {
@@ -42,7 +62,9 @@ export async function onRequestGet({ request }) {
       change: rows[n - 1].c - prev,
       changePct: (rows[n - 1].c / prev - 1) * 100,
       asOf: rows[n - 1].t,
+      koName,
       rows: chartRows,
+      rsiHist: rsiSeries(rows),
       tech,
     },
     200,
