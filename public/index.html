@@ -346,6 +346,25 @@ td.r,th.r{text-align:right}
 .svg-t{fill:var(--muted);font-family:var(--font);font-size:10.5px;font-variant-numeric:tabular-nums}
 .svg-halo{paint-order:stroke;stroke:var(--surface);stroke-width:3px}
 
+.filterbar{display:flex;gap:8px;margin:4px 0 12px;flex-wrap:wrap}
+.filterbar button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:8px 16px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit}
+.filterbar button .n{color:var(--muted);font-weight:600;margin-left:4px}
+.filterbar button.on{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+.filterbar button.on .n{color:inherit;opacity:.8}
+body:not([data-view=rec]) #rec{display:none}
+body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
+.pnav a.on{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
+.toast{position:fixed;left:50%;bottom:28px;transform:translateX(-50%);z-index:200;background:var(--surface2);color:var(--ink);border:1px solid var(--accent);border-radius:14px;padding:12px 16px;box-shadow:0 12px 34px rgba(0,0,0,.5);display:flex;gap:14px;align-items:center;width:max-content;max-width:min(92vw,560px);font-size:14px}
+.toast[hidden]{display:none}
+.toast span{flex:1;min-width:0;overflow-wrap:anywhere}
+#rec,#recBody{min-width:0}
+.toast button{background:none;border:0;color:var(--accent);font-weight:800;cursor:pointer;font-size:14px;white-space:nowrap}
+.rec-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:14px}
+.rec-sum>div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px}
+.rec-sum .k{font-size:12px;color:var(--muted)} .rec-sum .v{font-size:20px;font-weight:800;letter-spacing:-.02em}
+.rec-tbl td,.rec-tbl th{white-space:nowrap}
+.rec-act button{background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px}
+.rec-act button:hover{color:var(--ink)}
 /* 종목 리스트: 모든 줄이 같은 칸 너비로 정렬되도록 고정 열 */
 @media (min-width:641px){
   .srow-btn{grid-template-columns:minmax(0,1fr) 92px 82px minmax(88px,.7fr) 64px;gap:6px 10px;padding:14px 6px 14px 16px}
@@ -358,9 +377,14 @@ td.r,th.r{text-align:right}
   .srow-reg[data-kind=aim]{width:92px}
   .srow-reg[data-kind=sell]{width:146px;padding-block:8px}
   .srow-reg[data-kind=rsi]{width:92px}
+  .srow-reg[data-kind=done]{width:66px}
   a.srow-tv{width:56px}
   .srow-x{width:40px;padding:0;text-align:center;flex:none}
   .reg-pl{font-size:11.5px}
+}
+@media (min-width:641px) and (max-width:1260px){
+  .srow-btn{grid-template-columns:minmax(96px,1fr) 88px 78px minmax(84px,.8fr)}
+  .srow-spark{display:none}
 }
 </style>
 </head>
@@ -369,7 +393,7 @@ td.r,th.r{text-align:right}
   <div class="wrap bar">
     <a class="brand" href="#">종목<span>분석데스크</span></a>
     <div class="bar-r">
-      <nav class="pnav" aria-label="바로가기"><a href="#market">시장 현황</a><a href="#watch">내 종목</a></nav>
+      <nav class="pnav" aria-label="바로가기"><a href="#market" data-view="main">시장 현황</a><a href="#watch" data-view="main">내 종목</a><a href="#rec" data-view="rec" id="navRec">수익기록</a></nav>
       <button class="codebtn" id="authBtn" type="button">구글 로그인</button>
       <button class="codebtn" id="codeBtn" type="button">접근 코드</button>
     </div>
@@ -397,6 +421,11 @@ td.r,th.r{text-align:right}
     <div class="market" id="marketBody"><div class="card"><div class="loading"><span class="pulse"></span>시장 데이터를 불러오는 중…</div></div></div>
   </section>
 
+  <section id="rec" aria-label="수익기록">
+    <div class="sec-title"><h2>수익기록</h2><span class="meta">내 종목에서 <b>✅ 매도완료</b>를 누르면 여기에 자동으로 쌓여요</span></div>
+    <div id="recBody"></div>
+  </section>
+
   <section id="watch" class="lookup" aria-label="내 종목">
     <div class="sec-title"><h2>내 종목</h2><span class="meta">종목을 누르면 바로 아래에 분석이 펼쳐집니다</span></div>
     <form id="form" autocomplete="off">
@@ -410,11 +439,13 @@ td.r,th.r{text-align:right}
       <button class="chip-btn" type="button" data-s="000660">000660 SK하이닉스</button>
     </div>
     <div id="formErr"></div>
+    <div class="filterbar" id="filterbar" role="tablist" aria-label="종목 보기"></div>
     <div class="stocklist" id="list"></div>
   </section>
 </main>
 
-<div id="reg" class="regov" hidden><div class="regbox" role="dialog" aria-modal="true" aria-labelledby="regTitle"><div class="reghead"><h2 id="regTitle"></h2><button type="button" class="btn ghost" data-act="regclose">닫기 ✕</button></div><div id="box-aim"></div><div id="box-pos"></div><div id="box-rsi" hidden></div></div></div>
+<div id="toast" class="toast" hidden></div>
+<div id="reg" class="regov" hidden><div class="regbox" role="dialog" aria-modal="true" aria-labelledby="regTitle"><div class="reghead"><h2 id="regTitle"></h2><button type="button" class="btn ghost" data-act="regclose">닫기 ✕</button></div><div id="box-aim"></div><div id="box-pos"></div><div id="box-rsi" hidden></div><div id="box-rec" hidden></div></div></div>
 <div id="holder" hidden><div id="closeWrap" class="slot-close"><button id="floatClose" class="float-close" type="button">✕ 닫기</button></div><section class="report" id="report" hidden></section></div>
 
 <script>
@@ -878,7 +909,7 @@ function paintAuth(){
 function nowStr(){ var d=new Date(Date.now()+9*3600*1000); return ('0'+d.getUTCHours()).slice(-2)+':'+('0'+d.getUTCMinutes()).slice(-2); }
 function payload(){
   var w=state.order.slice(); (state.missing||[]).forEach(function(x){ if(w.indexOf(x)<0) w.push(x); });
-  return {watch:w, active:state.active||'', pos:state.pos};
+  return {watch:w, active:state.active||'', pos:state.pos, rec:state.rec||[]};
 }
 function queueSync(){
   if(!authToken()||!syncReady) return;
@@ -908,10 +939,12 @@ function mergeData(a,b){ // 서버 a + 이 기기 b 를 합친다(중복 제거)
     var cur=pos[sym]=pos[sym]||[]; (b.pos[sym]||[]).forEach(function(l){ if(l.k===3&&!cur.some(function(x){ return x.id===l.id; })) cur.push(l); });
     cur.sort(function(x,y){ return x.date<y.date?-1:x.date>y.date?1:0; });
   });
-  return {watch:watch.slice(0,MAX_TABS), pos:pos, active:a.active};
+  var rec=(a.rec||[]).slice(); (b.rec||[]).forEach(function(r){ if(!rec.some(function(x){ return x.id===r.id; })) rec.push(r); });
+  return {watch:watch.slice(0,MAX_TABS), pos:pos, active:a.active, rec:rec};
 }
 function applyData(d){
   state.pos=d.pos||{}; lsSet(POS_KEY,JSON.stringify(state.pos));
+  state.rec=Array.isArray(d.rec)?d.rec:[]; lsSet(REC_KEY,JSON.stringify(state.rec)); renderRec();
   lsSet(WATCH_KEY,JSON.stringify(d.watch||[])); lsSet(ACTIVE_KEY,d.active||'');
   state.reports={}; state.order=[]; state.active=null;
   var r=$('#report'); r.hidden=true; r.innerHTML='';
@@ -919,7 +952,7 @@ function applyData(d){
 }
 function localData(){
   var w=[],p={}; try{ w=JSON.parse(lsGet(WATCH_KEY)||'[]'); }catch(e){} try{ p=JSON.parse(lsGet(POS_KEY)||'{}'); }catch(e){}
-  return {watch:Array.isArray(w)?w.filter(function(x){ return typeof x==='string'; }):[], pos:(p&&typeof p==='object')?p:{}, active:lsGet(ACTIVE_KEY)||''};
+  return {watch:Array.isArray(w)?w.filter(function(x){ return typeof x==='string'; }):[], pos:(p&&typeof p==='object')?p:{}, active:lsGet(ACTIVE_KEY)||'', rec:state.rec||[]};
 }
 // 서버 데이터를 불러온다. merge=true 는 방금 로그인했을 때(이 기기 데이터와 합침), false 는 페이지를 열 때(서버가 기준).
 function pullServer(merge){
@@ -927,8 +960,8 @@ function pullServer(merge){
     if(x.status===401){ forgetLogin('로그인이 만료되었습니다. 다시 구글로 로그인해 주세요.'); restoreWatch(); loadAims(); return; }
     if(!(x.status===200&&x.j.ok)){ syncStat('⚠ 서버에서 불러오지 못했습니다 (이 기기 데이터를 표시 중)'); restoreWatch(); loadAims(); return; }
     var d=x.j.data;
-    if(!d||(!(d.watch||[]).length&&!Object.keys(d.pos||{}).length)){
-      syncReady=true; restoreWatch(); loadAims(); if(localData().watch.length||Object.keys(localData().pos).length) pushNow(false); else syncStat('✓ 서버에 자동 저장됩니다'); return;
+    if(!d||(!(d.watch||[]).length&&!Object.keys(d.pos||{}).length&&!(d.rec||[]).length)){
+      syncReady=true; restoreWatch(); loadAims(); if(localData().watch.length||Object.keys(localData().pos).length||(state.rec||[]).length) pushNow(false); else syncStat('✓ 서버에 자동 저장됩니다'); return;
     }
     var out=d;
     if(merge){ var m=mergeData(d,localData()); out=m; }
@@ -964,8 +997,8 @@ function googleSetup(){
 function doLogout(){
   var t=authToken();
   (t?pushNow(false):Promise.resolve()).then(function(){ return authFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'logout'})}).catch(function(){}); }).then(function(){
-    [WATCH_KEY,ACTIVE_KEY,POS_KEY,'sd_aim',FX_KEY].forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
-    forgetLogin(''); state.pos={}; state.aims={}; state.sells={}; applyData({watch:[],pos:{},active:''}); authMsg('로그아웃했습니다. 다시 구글로 로그인하면 종목과 매수 기록이 돌아옵니다.');
+    [WATCH_KEY,ACTIVE_KEY,POS_KEY,REC_KEY,'sd_aim','sd_sell',FX_KEY].forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+    forgetLogin(''); state.pos={}; state.aims={}; state.sells={}; applyData({watch:[],pos:{},active:'',rec:[]}); authMsg('로그아웃했습니다. 다시 구글로 로그인하면 종목과 매수 기록이 돌아옵니다.');
   });
 }
 $('#authBtn').addEventListener('click',function(){ var p=$('#authPanel'); p.classList.toggle('open'); if(p.classList.contains('open')) googleSetup(); });
@@ -973,10 +1006,13 @@ $('#authLogout').addEventListener('click',doLogout);
 paintAuth();
 
 /* ---------- 매수 기록 · 수익률 (매입가=1주당 원화 가격 × 수량, 해외주식은 현재 환율 반영) ---------- */
+state.filter=(lsGet('sd_filter')==='held')?'held':'all';
+var REC_KEY='sd_rec'; state.rec=[]; try{ var _r=JSON.parse(lsGet(REC_KEY)||'[]'); if(Array.isArray(_r)) state.rec=_r; }catch(e){}
 var POS_KEY='sd_pos';
 state.pos={}; state.fxNow={};
 try{ var _p=JSON.parse(lsGet(POS_KEY)||'{}'); if(_p&&typeof _p==='object'&&!Array.isArray(_p)) state.pos=_p; }catch(e){}
 function savePos(){ lsSet(POS_KEY, JSON.stringify(state.pos)); queueSync(); }
+function saveRec(){ lsSet(REC_KEY, JSON.stringify(state.rec)); queueSync(); }
 function todayStr(){ var d=new Date(Date.now()+9*3600*1000); return d.toISOString().slice(0,10); }
 function parseAmt(v){ var n=parseFloat(String(v||'').replace(/[^0-9.]/g,'')); return isFinite(n)&&n>0?n:null; }
 function won(v){ return isNum(v)?nf(Math.round(v),0)+'원':'–'; }
@@ -1067,7 +1103,7 @@ function addLot(rep){
   var sym=rep.stock.symbol, lots=(state.pos[sym]=state.pos[sym]||[]);
   if(state.editLot){
     var el0=lots.filter(function(l){ return l.id===state.editLot.id; })[0];
-    if(el0){ el0.date=date; el0.price=px; el0.qty=qty; lots.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; }); state.editLot=null; savePos(); $('#posAmt').value=''; $('#posUnit').value=''; $('#posDate').value=''; renderPosition(rep); renderList(); return; }
+    if(el0){ el0.date=date; el0.price=px; el0.qty=qty; lots.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; }); state.editLot=null; savePos(); $('#posAmt').value=''; $('#posUnit').value=''; $('#posDate').value=''; closeReg(); toast('✅ 매수 기록을 수정했어요.'); return; }
     state.editLot=null;
   }
   if(lots.length>=50){ err.innerHTML='<div class="err">종목당 최대 50건까지 기록할 수 있습니다.</div>'; return; }
@@ -1075,7 +1111,7 @@ function addLot(rep){
   lots.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
   savePos();
   $('#posAmt').value=''; $('#posUnit').value='';
-  renderPosition(rep); renderList();
+  closeReg(); toast('✅ 매수 기록을 추가했어요. 내 수익률이 줄에 표시됩니다.');
 }
 
 /* ---------- 매수 에임가 (서버 KV에 저장, 5분마다 확인해 도달하면 슬랙 알림) ---------- */
@@ -1141,7 +1177,8 @@ function setAim(rep){
       M[s.symbol]={symbol:s.symbol,side:side,name:dn(s),currency:s.currency,aim:v,dir:side==='sell'?'up':v<=s.price?'down':'up',alertedAt:null,local:true};
       state.aimServer=false; state.aimErr=x.status===401?'로그인이 필요합니다. 오른쪽 위 "구글 로그인"에서 로그인하면 슬랙 알림을 쓸 수 있습니다.':(x.j.error||'알림 서버에 저장하지 못했습니다.');
     }
-    saveAimCache(); $('#aimPx').value=''; renderAim(rep); renderList();
+    saveAimCache(); $('#aimPx').value=''; closeReg();
+    toast((side==='sell'?'🏁 매도':'🎯 매수')+' 에임가를 설정했어요.'+(state.aimServer===false?' ⚠ 알림 서버에 연결되지 않아 슬랙 알림은 가지 않아요 ('+(state.aimErr||'로그인 필요')+')':' 목표가에 닿으면 슬랙으로 알려드려요.'));
   }).catch(function(){ btn.disabled=false; err.innerHTML='<div class="err">저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</div>'; });
 }
 
@@ -1150,13 +1187,13 @@ function openReg(sym,kind){
   state.reg=sym; state.regKind=kind; state.editLot=null;
   var s=rep.stock;
   $('#regTitle').textContent=(kind==='aim'?'🎯 매수 에임가 · ':kind==='sell'?'🏁 매도 에임가 · ':kind==='rsi'?'📈 RSI 변화 · ':'💰 내 수익률 · ')+dn(s)+' ('+s.symbol.replace(/\.(KS|KQ)$/,'')+')';
-  $('#box-aim').hidden=!(kind==='aim'||kind==='sell'); $('#box-pos').hidden=kind!=='pos'; $('#box-rsi').hidden=kind!=='rsi';
+  $('#box-rec').hidden=true; $('#box-aim').hidden=!(kind==='aim'||kind==='sell'); $('#box-pos').hidden=kind!=='pos'; $('#box-rsi').hidden=kind!=='rsi';
   $('#reg').hidden=false; document.body.classList.add('modal-open');
   if(kind==='rsi'){ renderRsi(rep); }
   else if(kind==='aim'||kind==='sell'){ renderAim(rep); if(state.aimServer===null&&authToken()) loadAims(); } else { renderPosition(rep); ensureFxNow(rep); }
   var f=document.querySelector('#reg input'); if(f) try{ f.focus(); }catch(e){}
 }
-function closeReg(){ state.editLot=null; $('#reg').hidden=true; document.body.classList.remove('modal-open'); state.reg=null; renderList(); }
+function closeReg(){ state.editLot=null; state.recEdit=null; $('#box-rec').hidden=true; $('#reg').hidden=true; document.body.classList.remove('modal-open'); state.reg=null; renderList(); }
 document.addEventListener('keydown', function(ev){ if(ev.key==='Escape'&&!$('#reg').hidden){ ev.stopPropagation(); closeReg(); } }, true);
 
 /* ---------- RSI 변화: 일봉 종가로 날짜별 RSI를 계산해 어제와 비교 ---------- */
@@ -1190,6 +1227,100 @@ function renderRsi(rep){
   h2+='</tbody></table></div><p class="muted small" style="margin:10px 0 0">장이 끝난 날마다 종가로 RSI(14일)를 계산한 값입니다. 최근 30거래일을 보여드리며, 따로 저장하지 않아도 날짜별 기록이 항상 채워집니다.</p>';
   box.innerHTML='<div class="card">'+h2+'</div>';
 }
+
+/* ---------- 수익기록: 매도완료를 누르면 매입가·매도가·수익률·수익금을 기록 ---------- */
+var toastTimer=null;
+function toast(msg, actLabel, actFn){
+  var el=$('#toast'); el.innerHTML='<span></span>'; el.firstChild.textContent=msg;
+  if(actLabel){ var b=document.createElement('button'); b.type='button'; b.textContent=actLabel; b.onclick=function(){ el.hidden=true; clearTimeout(toastTimer); actFn(); }; el.appendChild(b); }
+  el.hidden=false; clearTimeout(toastTimer); toastTimer=setTimeout(function(){ el.hidden=true; }, actLabel?9000:4500);
+}
+function setView(v){
+  document.body.setAttribute('data-view', v);
+  var a=$('#navRec'); if(a) a.classList.toggle('on', v==='rec');
+  if(v==='rec'){ renderRec(); window.scrollTo({top:0,behavior:'smooth'}); }
+}
+document.querySelector('.pnav').addEventListener('click', function(ev){
+  var a=ev.target.closest('a[data-view]'); if(!a) return;
+  if(a.getAttribute('data-view')==='rec'){ ev.preventDefault(); setView('rec'); }
+  else { if(document.body.getAttribute('data-view')==='rec'){ setView('main'); setTimeout(function(){ var el=document.querySelector(a.getAttribute('href')); if(el) el.scrollIntoView({behavior:'smooth'}); },30); ev.preventDefault(); } }
+});
+function recMoney(r,v){ return r.cur&&r.cur!=='KRW'?money(v,r.cur):won(v); }
+function markSold(sym){
+  var rep=state.reports[sym], s=rep&&rep.stock; if(!s) return;
+  var lots=state.pos[sym]||[];
+  if(!lots.length){ toast('먼저 💰 수익률에 매수 기록을 남겨 주세요. 매입가가 있어야 수익을 계산할 수 있어요.'); return; }
+  var aimItem=state.sells[sym], sell=aimItem&&aimItem.aim>0?aimItem.aim:s.price;
+  var cur=s.currency;
+  if(isFor(cur)&&!isNum(state.fxNow[cur])){ ensureFx(cur); toast('환율을 조회하는 중이에요. 잠시 후 다시 눌러 주세요.'); return; }
+  var q=calcPos(sym,sell,cur); if(q.ret==null||!q.cost){ toast('수익을 계산하지 못했어요. 매수 기록을 확인해 주세요.'); return; }
+  var rec={ id:Date.now().toString(36)+Math.random().toString(36).slice(2,6), sym:sym, name:dn(s), cur:cur, date:todayStr(),
+    avg:q.avg, sell:sell, sh:q.sh, cost:q.cost, val:q.val, pl:q.pl, ret:q.ret, fx:isFor(cur)?state.fxNow[cur]:1,
+    lots:lots.map(function(l){ return {id:l.id,k:3,date:l.date,price:l.price,qty:l.qty}; }), aim:aimItem?aimItem.aim:0 };
+  state.rec.unshift(rec); saveRec();
+  delete state.pos[sym]; savePos();
+  if(aimItem){ delete state.sells[sym]; saveAimCache(); aimFetch('/api/aim?symbol='+encodeURIComponent(sym)+'&side=sell',{method:'DELETE'}).catch(function(){}); }
+  renderList(); renderRec();
+  toast('✅ '+dn(s)+' 매도 기록 완료 · 수익 '+swon(rec.pl)+' ('+signed(rec.ret,2)+'%)','되돌리기',function(){ undoSold(rec.id); });
+}
+function undoSold(id){
+  var i=state.rec.findIndex(function(x){ return x.id===id; }); if(i<0) return;
+  var r=state.rec[i]; state.rec.splice(i,1); saveRec();
+  state.pos[r.sym]=(r.lots||[]).slice(); savePos();
+  renderList(); renderRec();
+  if(r.aim>0){
+    var rep=state.reports[r.sym];
+    state.sells[r.sym]={symbol:r.sym,side:'sell',name:r.name,currency:r.cur,aim:r.aim,dir:'up',alertedAt:null,local:true}; saveAimCache(); renderList();
+    aimFetch('/api/aim',{method:'POST',body:JSON.stringify({symbol:r.sym,name:r.name,currency:r.cur,aim:r.aim,price:(rep&&rep.stock&&rep.stock.price)||r.aim,side:'sell'})}).then(function(x){ if(x.status===200&&x.j.ok){ state.sells[r.sym]=x.j.item; saveAimCache(); renderList(); } }).catch(function(){});
+  }
+  toast('되돌렸어요. 매수 기록이 다시 내 종목에 돌아왔어요.');
+}
+function renderRec(){
+  var box=$('#recBody'); if(!box) return;
+  var rs=state.rec||[];
+  if(!rs.length){ box.innerHTML='<div class="card"><p class="muted" style="margin:0">아직 기록이 없어요. 내 종목에서 매도를 마친 종목의 <b>✅ 매도완료</b> 버튼을 누르면 매입가·매도가·수익률·수익금이 여기에 자동으로 저장됩니다.</p></div>'; return; }
+  var cost=0,val=0,win=0; rs.forEach(function(r){ cost+=r.cost; val+=r.val; if(r.val>r.cost) win++; });
+  var pl=val-cost, ret=cost?(val/cost-1)*100:null;
+  var h='<div class="rec-sum"><div><div class="k">총 수익금</div><div class="v num '+dir(pl)+'">'+swon(pl)+'</div></div>'+
+    '<div><div class="k">총 수익률</div><div class="v num '+dir(ret)+'">'+(ret==null?'–':signed(ret,2)+'%')+'</div></div>'+
+    '<div><div class="k">매도 건수</div><div class="v num">'+rs.length+'건</div></div>'+
+    '<div><div class="k">이익 낸 비율</div><div class="v num">'+Math.round(win/rs.length*100)+'%</div></div></div>';
+  h+='<div class="card"><div class="tblwrap"><table class="rec-tbl" style="min-width:760px"><thead><tr><th>매도일</th><th>종목</th><th>매입가(1주)</th><th>매도가</th><th>수익률</th><th>수익금액</th><th></th></tr></thead><tbody>';
+  rs.forEach(function(r){
+    var d=r.val-r.cost, rt=(r.val/r.cost-1)*100;
+    h+='<tr><td class="num">'+esc(r.date||'–')+'</td><td><b>'+esc(r.name)+'</b><div class="muted small">'+esc(r.sym.replace(/\.(KS|KQ)$/,''))+'</div></td>'+
+      '<td class="num">'+won(r.avg)+'<div class="muted small">'+nf(r.sh,r.sh%1?4:0)+'주</div></td>'+
+      '<td class="num">'+esc(recMoney(r,r.sell))+(r.cur&&r.cur!=='KRW'?'<div class="muted small">환율 '+nf(r.fx,2)+'원</div>':'')+'</td>'+
+      '<td class="num '+dir(rt)+'"><b>'+arrow(rt)+' '+signed(rt,2)+'%</b></td>'+
+      '<td class="num '+dir(d)+'"><b>'+swon(d)+'</b></td>'+
+      '<td class="rec-act"><button type="button" data-act="recedit" data-id="'+esc(r.id)+'">수정</button>'+
+      '<button type="button" data-act="recdel" data-id="'+esc(r.id)+'">'+(state.recArm===r.id?'정말 삭제?':'삭제')+'</button></td></tr>';
+  });
+  h+='</tbody></table></div><p class="muted small" style="margin:10px 0 0">매도완료를 누르면 그 종목의 매수 기록은 내 종목에서 빠지고 여기로 옮겨집니다. 수수료·세금은 반영되지 않은 참고용 계산이에요. 잘못 눌렀다면 삭제하면 안 되고, 방금 뜨는 <b>되돌리기</b>를 쓰면 매수 기록이 다시 돌아와요.</p></div>';
+  box.innerHTML=h;
+}
+function openRecEdit(id){
+  var r=state.rec.filter(function(x){ return x.id===id; })[0]; if(!r) return;
+  state.reg=null; state.regKind='rec'; state.recEdit=id;
+  $('#regTitle').textContent='✏️ 매도 기록 수정 · '+r.name;
+  ['#box-aim','#box-pos','#box-rsi'].forEach(function(s){ $(s).hidden=true; });
+  var b=$('#box-rec'); b.hidden=false;
+  b.innerHTML='<div class="card"><p class="muted small" style="margin-top:0">매입가(평균 '+won(r.avg)+' · '+nf(r.sh,r.sh%1?4:0)+'주)는 그대로 두고, 실제로 판 가격과 날짜를 고칠 수 있어요.</p>'+
+    '<form class="pos-form" id="recForm" novalidate><label>매도일<input type="date" id="recDate" max="'+todayStr()+'" value="'+esc(r.date||'')+'"></label>'+
+    '<label>매도가 ('+esc(r.cur||'KRW')+', 1주당)<input type="text" inputmode="decimal" id="recSell" value="'+esc(String(r.sell))+'"></label>'+
+    '<button class="btn" type="submit">수정 저장</button></form><div id="recErr"></div></div>';
+  $('#reg').hidden=false; document.body.classList.add('modal-open');
+}
+function saveRecEdit(){
+  var r=state.rec.filter(function(x){ return x.id===state.recEdit; })[0]; if(!r) return;
+  var date=$('#recDate').value, px=parseAmt($('#recSell').value);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)){ $('#recErr').innerHTML='<div class="err">매도일을 선택해 주세요.</div>'; return; }
+  if(!px){ $('#recErr').innerHTML='<div class="err">매도가를 숫자로 입력해 주세요.</div>'; return; }
+  r.date=date; r.sell=px; r.val=r.sh*px*(r.fx||1); r.pl=r.val-r.cost; r.ret=(r.val/r.cost-1)*100;
+  saveRec(); closeReg(); renderRec();
+}
+document.addEventListener('submit', function(ev){ if(ev.target&&ev.target.id==='recForm'){ ev.preventDefault(); saveRecEdit(); } });
+
 function rowHtml(sym,i){
   var r=state.reports[sym], s=r&&r.stock, on=sym===state.active;
   var myPill='', pt0=null;
@@ -1225,6 +1356,7 @@ function rowHtml(sym,i){
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="pos" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 내역·수익률 등록" aria-label="'+esc(code)+' 매수 내역 등록">'+'<span class="reg-t">💰<span class="rl"> 수익률</span></span>'+myLine+'</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="aim" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 에임가 등록" aria-label="'+esc(code)+' 매수 에임가 등록"><span class="reg-t">🎯<span class="rl"> 매수에임가</span></span>'+buySub+'</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="sell" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 에임가 등록" aria-label="'+esc(code)+' 매도 에임가 등록"><span class="reg-t">🏁<span class="rl"> 매도에임가</span></span>'+sellSub+'</button>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="sold" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 완료 — 수익기록에 저장" aria-label="'+esc(code)+' 매도 완료"><span class="reg-t">✅<span class="rl"> 매도완료</span></span></button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="rsi" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="RSI 변화 보기" aria-label="'+esc(code)+' RSI 변화 보기"><span class="reg-t">📈<span class="rl"> RSI '+(rd?nf(rd.now,0):'')+'</span></span>'+rsiLine+'</button>'+
     '<a class="srow-tv" href="'+esc(tvUrl(sym))+'" target="_blank" rel="noopener noreferrer" title="트레이딩뷰 차트로 이동" aria-label="'+esc(code)+' 트레이딩뷰 차트 열기">차트<span class="rl"></span> ↗</a>'+
     '<button type="button" class="srow-x" data-act="close" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 삭제">×</button></div>'+
@@ -1237,10 +1369,23 @@ function renderList(){
   var wrap=$('#closeWrap'); holder.appendChild(wrap); // 목록을 다시 그리기 전에 닫기 버튼을 안전한 곳으로 옮겨 둔다
   state.order.forEach(function(sym){ var r=state.reports[sym]; if(r&&(state.pos[sym]||[]).length) ensureFx(r.stock.currency); });
   if(!state.order.length){
+    $('#filterbar').innerHTML='';
     list.innerHTML='<div class="card empty">아직 추가한 종목이 없습니다. 위 입력창에 종목 코드를 넣어 보세요.</div>';
     return;
   }
-  list.innerHTML=state.order.map(function(sym,i){ return rowHtml(sym,i); }).join('');
+  var held=state.order.filter(function(sym){ return (state.pos[sym]||[]).length; });
+  if(state.filter==='held'&&!held.length&&state.order.length) { /* 구매종목이 하나도 없으면 안내를 보여준다 */ }
+  var fb=$('#filterbar');
+  fb.innerHTML='<button type="button" role="tab" data-act="filter" data-f="all" class="'+(state.filter==='all'?'on':'')+'" aria-selected="'+(state.filter==='all')+'">전체<span class="n">'+state.order.length+'</span></button>'+
+    '<button type="button" role="tab" data-act="filter" data-f="held" class="'+(state.filter==='held'?'on':'')+'" aria-selected="'+(state.filter==='held')+'">💰 구매종목<span class="n">'+held.length+'</span></button>';
+  var vis=state.filter==='held'?held:state.order;
+  if(!vis.length){
+    list.innerHTML='<div class="card empty">구매 기록이 있는 종목이 없어요. 종목 줄의 <b>💰 수익률</b>에서 매수 기록을 남기면 여기에 모아서 볼 수 있어요.</div>';
+    if(state.active&&vis.indexOf(state.active)<0){ state.active=null; rep.hidden=true; rep.innerHTML=''; }
+    return;
+  }
+  list.innerHTML=vis.map(function(sym){ return rowHtml(sym,state.order.indexOf(sym)); }).join('');
+  if(state.active&&vis.indexOf(state.active)<0){ state.active=null; rep.hidden=true; rep.innerHTML=''; document.title='종목 분석 데스크'; }
   if(state.active){
     var slots=list.querySelectorAll('.slot'), i, slot=null;
     for(i=0;i<slots.length;i++){ if(slots[i].getAttribute('data-slot')===state.active){ slot=slots[i]; break; } }
@@ -1451,7 +1596,15 @@ document.addEventListener('click', function(ev){
   if(el.dataset.s){ $('#sym').value=el.dataset.s; analyze(el.dataset.s); return; }
   var act=el.dataset.act, rep=state.reports[state.reg];
   if(act==='reg'){ openReg(el.dataset.sym, el.dataset.kind); return; }
+  if(act==='filter'){ state.filter=el.dataset.f==='held'?'held':'all'; lsSet('sd_filter',state.filter); renderList(); return; }
   if(act==='regclose'){ closeReg(); return; }
+  if(act==='sold'){ markSold(el.dataset.sym); return; }
+  if(act==='recedit'){ openRecEdit(el.dataset.id); return; }
+  if(act==='recdel'){
+    if(state.recArm===el.dataset.id){ state.rec=state.rec.filter(function(x){ return x.id!==el.dataset.id; }); state.recArm=null; saveRec(); renderRec(); }
+    else { state.recArm=el.dataset.id; renderRec(); setTimeout(function(){ if(state.recArm===el.dataset.id){ state.recArm=null; renderRec(); } },4000); }
+    return;
+  }
   if(act==='code'){ openCodePanel(); return; }
   if(act==='tab'){ if(state.active===el.dataset.sym){ collapse(); } else { show(el.dataset.sym); var sl=document.querySelector('.srow.on'); if(sl) sl.scrollIntoView({behavior:'smooth',block:'nearest'}); } return; }
   if(act==='close'){ closeTab(el.dataset.sym); return; }
@@ -1520,11 +1673,13 @@ document.addEventListener('submit', function(ev){
 
 /* 종목 순위: 왼쪽 번호 칸을 끌어서(터치 포함) 위아래로 옮기거나, 포커스 후 ↑↓ 키로 바꾼다 */
 function moveSym(sym, to){
+  if(state.filter==='held') return;
   var from=state.order.indexOf(sym); if(from<0||to<0||to>=state.order.length||to===from) return;
   state.order.splice(from,1); state.order.splice(to,0,sym); saveWatch(); renderList();
 }
 document.addEventListener('pointerdown', function(ev){
   var h=ev.target.closest&&ev.target.closest('.srow-drag'); if(!h||(ev.button!==undefined&&ev.button>0)) return;
+  if(state.filter==='held') return; // 필터 중에는 순서를 바꾸지 않는다
   ev.preventDefault();
   var row=h.closest('.srow'), sym=h.getAttribute('data-sym'), list=$('#list'), from=state.order.indexOf(sym);
   row.classList.add('dragging');                       // 열려 있던 상세는 끌 동안 접어 둔다
