@@ -128,13 +128,14 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .srow-drag{border-radius:19px 0 0 19px}
 .srow.on{border-color:var(--accent)}
 .srow-head{display:flex;align-items:stretch}
-.srow-btn{flex:1;min-width:0;display:grid;grid-template-columns:minmax(150px,1.6fr) auto auto minmax(0,1.2fr) 120px 22px;gap:6px 18px;align-items:center;text-align:left;background:none;border:0;padding:16px 8px 16px 22px;cursor:pointer}
+.srow-btn{flex:1;min-width:0;display:grid;grid-template-columns:minmax(170px,1.6fr) auto auto minmax(0,1.2fr) 120px 22px;gap:6px 18px;align-items:center;text-align:left;background:none;border:0;padding:16px 8px 16px 22px;cursor:pointer}
 .srow-id{display:grid;min-width:0}
 .srow-id b{font-size:13px;font-weight:400;color:var(--muted)}
-.srow-name{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.25}
+.srow-name{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:normal;word-break:normal;overflow-wrap:anywhere;line-height:1.25;min-width:0}
 .srow-px{font-size:17px;font-weight:700;text-align:right;white-space:nowrap}
 .srow-chg{font-size:14.5px;font-weight:700;text-align:right;min-width:78px}
-.srow-spark{min-width:0;overflow:hidden}
+.srow-spark{min-width:0;overflow:hidden;contain:paint}
+.srow-spark .spark{display:block;width:100%;max-width:100%}
 .srow-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .srow-spark .spark{margin:0;height:30px}
 .chev{color:var(--muted);font-size:14px}
@@ -220,6 +221,9 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
   .srow-drag{padding-inline:8px}
   .srow-head{flex-wrap:wrap}
   .srow-btn{flex:1 1 calc(100% - 60px)}
+  .srow-sellcol{display:flex;flex-direction:column;flex:1 1 0;border-left:1px solid var(--line);border-top:1px solid var(--line)}
+  .srow-sellcol .srow-reg{border:0;min-height:40px}
+  .srow-sellcol .srow-reg[data-act=sold]{border-top:1px solid var(--line)}
   .srow-reg,a.srow-tv,.srow-x{flex:1 1 0;justify-content:center;min-height:46px;padding:6px 0;border-top:1px solid var(--line);border-left:1px solid var(--line)}
   .srow-drag{border-radius:19px 0 0 19px}
   .srow-btn{gap:4px 8px}
@@ -369,7 +373,7 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
 .rec-act .rec-undo:hover{background:var(--accent);color:var(--accent-ink)}
 /* 종목 리스트: 모든 줄이 같은 칸 너비로 정렬되도록 고정 열 */
 @media (min-width:641px){
-  .srow-btn{grid-template-columns:minmax(0,1fr) 92px 82px minmax(88px,.7fr) 64px;gap:6px 10px;padding:14px 6px 14px 16px}
+  .srow-btn{grid-template-columns:minmax(150px,1fr) 92px 82px auto 64px;gap:6px 10px;padding:14px 6px 14px 16px}
   .srow-btn .chev{display:none}
   .srow-px{text-align:right}
   .srow-chg{min-width:0;text-align:right}
@@ -377,7 +381,10 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
   .srow-tv{box-sizing:border-box;flex:none;justify-content:center;text-align:center;padding:0 4px;font-size:12.5px}
   .srow-reg[data-kind=pos]{width:104px;padding-block:8px}
   .srow-reg[data-kind=aim]{width:92px}
-  .srow-reg[data-kind=sell]{width:146px;padding-block:8px}
+  .srow-sellcol{flex:none;width:146px;display:flex;flex-direction:column;border-left:1px solid var(--line)}
+  .srow-sellcol .srow-reg{width:100%;border-left:0;flex:1 1 auto;box-sizing:border-box}
+  .srow-sellcol .srow-reg[data-kind=sell]{padding-block:8px}
+  .srow-sellcol .srow-reg[data-act=sold]{flex:none;min-height:30px;padding:5px 0;border-top:1px solid var(--line);background:var(--surface2)}
   .srow-reg[data-kind=rsi]{width:92px}
   .srow-reg[data-kind=done]{width:66px}
   a.srow-tv{width:56px}
@@ -385,7 +392,7 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
   .reg-pl{font-size:11.5px}
 }
 @media (min-width:641px) and (max-width:1260px){
-  .srow-btn{grid-template-columns:minmax(96px,1fr) 88px 78px minmax(84px,.8fr)}
+  .srow-btn{grid-template-columns:minmax(120px,1fr) 88px 78px auto}
   .srow-spark{display:none}
 }
 </style>
@@ -1358,10 +1365,10 @@ function rowHtml(sym,i){
     '</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="pos" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 내역·수익률 등록" aria-label="'+esc(code)+' 매수 내역 등록">'+'<span class="reg-t">💰<span class="rl"> 수익률</span></span>'+myLine+'</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="aim" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 에임가 등록" aria-label="'+esc(code)+' 매수 에임가 등록"><span class="reg-t">🎯<span class="rl"> 매수에임가</span></span>'+buySub+'</button>'+
-    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="sell" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 에임가 등록" aria-label="'+esc(code)+' 매도 에임가 등록"><span class="reg-t">🏁<span class="rl"> 매도에임가</span></span>'+sellSub+'</button>'+
+    '<div class="srow-sellcol">'+'<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="sell" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 에임가 등록" aria-label="'+esc(code)+' 매도 에임가 등록"><span class="reg-t">🏁<span class="rl"> 매도에임가</span></span>'+sellSub+'</button>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="sold" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 완료 — 수익기록에 저장" aria-label="'+esc(code)+' 매도 완료"><span class="reg-t">✅<span class="rl"> 매도완료</span></span></button>'+'</div>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="rsi" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="RSI 변화 보기" aria-label="'+esc(code)+' RSI 변화 보기"><span class="reg-t">📈<span class="rl"> RSI '+(rd?nf(rd.now,0):'')+'</span></span>'+rsiLine+'</button>'+
     '<a class="srow-tv" href="'+esc(tvUrl(sym))+'" target="_blank" rel="noopener noreferrer" title="트레이딩뷰 차트로 이동" aria-label="'+esc(code)+' 트레이딩뷰 차트 열기">차트<span class="rl"></span> ↗</a>'+
-    '<button type="button" class="srow-tv srow-reg" data-act="sold" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 완료 — 수익기록에 저장" aria-label="'+esc(code)+' 매도 완료"><span class="reg-t">✅<span class="rl"> 매도완료</span></span></button>'+
     '<button type="button" class="srow-x" data-act="close" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 삭제">×</button></div>'+
     '<div class="slot" data-slot="'+esc(sym)+'"></div></div>';
 }
