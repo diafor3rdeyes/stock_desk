@@ -106,9 +106,18 @@ export async function checkAll(env) {
     const hit = it.dir === 'down' ? p <= it.aim : p >= it.aim;
     if (!hit) continue;
     const code = it.symbol.replace(/\.(KS|KQ)$/, '');
+    // 반대편 에임가(매수↔매도)도 함께 보여준다
+    let other = null;
+    try {
+      const raw = await env.ALERTS.get(KEY(it.user || '_', it.symbol, it.side === 'sell' ? 'buy' : 'sell'));
+      other = raw ? JSON.parse(raw) : null;
+    } catch {}
+    const buyAim = it.side === 'sell' ? other?.aim : it.aim;
+    const sellAim = it.side === 'sell' ? it.aim : other?.aim;
     const text =
-      `${it.side === 'sell' ? '💰 *매도 에임가 도달!*' : '🎯 *매수 에임가 도달!*'} ${it.name} (${code})\n` +
-      `현재가 ${fmt(p, it.currency)} ${it.dir === 'down' ? '≤' : '≥'} ${it.side === 'sell' ? '매도' : '매수'} 에임가 ${fmt(it.aim, it.currency)}\n` +
+      `${it.side === 'sell' ? '💰 *매도 에임가 도달!*' : '🎯 *매수 에임가 도달!*'}  *${it.name}* (${code})\n` +
+      `매수에임가 ${buyAim > 0 ? fmt(buyAim, it.currency) : '미설정'} / 매도에임가 ${sellAim > 0 ? fmt(sellAim, it.currency) : '미설정'}\n` +
+      `현재가 ${fmt(p, it.currency)}\n` +
       `차트: https://www.tradingview.com/chart/?symbol=${encodeURIComponent(/^\d{6}\.(KS|KQ)$/.test(it.symbol) ? 'KRX:' + code : it.symbol.replace(/-/g, '.'))}`;
     const r = await sendSlack(env, text);
     if (r.ok) await env.ALERTS.put(KEY(it.user || '_', it.symbol, it.side), JSON.stringify({ ...it, alertedAt: Date.now(), alertedPrice: p }));
