@@ -3,40 +3,27 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="color-scheme" content="light dark">
+<meta name="color-scheme" content="dark">
 <title>종목 분석 데스크</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png">
 <link rel="icon" href="/favicon.ico" sizes="48x48">
 <link rel="apple-touch-icon" href="/apple-touch-icon.png">
-<meta name="theme-color" content="#ffffff">
+<meta name="theme-color" content="#0b0b0c">
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.min.css">
 <style>
 /* 레이아웃: 상단 바 → 히어로 → 시장 현황 → 내 종목(세로 목록, 클릭하면 바로 아래에 리포트가 펼쳐짐)
-   색: 흰 바탕+연회색 구역, 차콜 버튼, 진녹색 포인트(글자 대비 4.5:1 이상). 한국 증시 관례에 맞춰 상승=빨강, 하락=파랑(공포=파랑, 탐욕=빨강). */
+   색: 블랙 바탕, 골드 버튼·포인트, 따뜻한 아이보리 글자(글자 대비 4.5:1 이상). 한국 증시 관례에 맞춰 상승=빨강, 하락=파랑(공포=파랑, 탐욕=빨강). */
 :root{
-  --bg:#f6f7f9; --band:#ffffff; --hero:#f6f7f9; --surface:#ffffff; --surface2:#f3f4f6; --ink:#222222; --muted:#5f6670; --line:#e3e6ea;
-  --accent:#0a7b55; --accent-ink:#ffffff; --navy:#262626; --navy-ink:#ffffff;
-  --up:#d9341a; --up-soft:#fdeae6; --down:#1f5fd1; --down-soft:#e5eefc; --flat:#5f6670;
-  --warn:#7a4a00; --warn-soft:#fff3cf;
+  --bg:#0b0b0c; --band:#111112; --hero:#141210; --surface:#17171a; --surface2:#202024; --ink:#f4f1e8; --muted:#aaa497; --line:#2f2c26;
+  --accent:#d4af37; --accent-ink:#141008; --navy:#d4af37; --navy-ink:#141008;
+  --up:#ff6b57; --up-soft:#3a1b17; --down:#74a4ff; --down-soft:#16233d; --flat:#a39d90;
+  --warn:#f0c75e; --warn-soft:#2f2711;
   --font:'Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Malgun Gothic','Noto Sans KR',system-ui,sans-serif;
   --mono:'Pretendard Variable',Pretendard,'Apple SD Gothic Neo','Malgun Gothic',system-ui,sans-serif;
-  --shadow:0 1px 2px rgba(0,0,0,.04),0 8px 22px -16px rgba(0,0,0,.22);
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --bg:#121212; --band:#1a1a1a; --hero:#161616; --surface:#1e1e1e; --surface2:#272727; --ink:#f2f2f2; --muted:#a9adb3; --line:#333333;
-    --accent:#34d399; --accent-ink:#04201a; --navy:#eeeeee; --navy-ink:#121212;
-    --up:#ff7a62; --up-soft:#3a1d18; --down:#7eaaff; --down-soft:#1a2740; --flat:#9aa0a8;
-    --warn:#fbbf24; --warn-soft:#33290f; --shadow:none; color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#121212; --band:#1a1a1a; --hero:#161616; --surface:#1e1e1e; --surface2:#272727; --ink:#f2f2f2; --muted:#a9adb3; --line:#333333;
-  --accent:#34d399; --accent-ink:#04201a; --navy:#eeeeee; --navy-ink:#121212;
-  --up:#ff7a62; --up-soft:#3a1d18; --down:#7eaaff; --down-soft:#1a2740; --flat:#9aa0a8;
-  --warn:#fbbf24; --warn-soft:#33290f; --shadow:none; color-scheme:dark;
+  --shadow:0 0 0 1px rgba(212,175,55,.05),0 14px 30px -18px rgba(0,0,0,.9);
+  color-scheme:dark;
 }
 *{box-sizing:border-box}
 [hidden]{display:none!important}
@@ -141,8 +128,8 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .srow-head{display:flex;align-items:stretch}
 .srow-btn{flex:1;min-width:0;display:grid;grid-template-columns:minmax(120px,1.4fr) auto auto minmax(0,1.2fr) 120px 22px;gap:6px 18px;align-items:center;text-align:left;background:none;border:0;padding:16px 8px 16px 22px;cursor:pointer}
 .srow-id{display:grid;min-width:0}
-.srow-id b{font-size:18px;font-weight:800;letter-spacing:-.02em}
-.srow-name{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow-id b{font-size:13px;font-weight:400;color:var(--muted)}
+.srow-name{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .srow-px{font-size:17px;font-weight:700;text-align:right}
 .srow-chg{font-size:14.5px;font-weight:700;text-align:right;min-width:78px}
 .srow-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
@@ -1124,7 +1111,7 @@ function rowHtml(sym,i){
   return '<div class="srow'+(on?' on':'')+'"><div class="srow-head">'+
     '<button type="button" class="srow-drag" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 순위 '+(i+1)+'위, 위아래 방향키 또는 끌어서 순서 변경" title="끌어서 순위 변경"><span class="rank">'+(i+1)+'</span><span class="grip" aria-hidden="true">⠿</span></button>'+
     '<button type="button" class="srow-btn" data-act="tab" data-sym="'+esc(sym)+'" aria-expanded="'+(on?'true':'false')+'">'+
-      '<span class="srow-id"><b>'+esc(code)+'</b><span class="srow-name">'+esc(s?s.name:'불러오는 중…')+'</span></span>'+
+      '<span class="srow-id"><span class="srow-name">'+esc(s?s.name:code)+'</span><b>'+esc(code)+'</b></span>'+
       '<span class="srow-px num">'+(s?money(s.price,s.currency):'–')+'</span>'+
       '<span class="srow-chg num '+(s?dir(s.changePct):'flat')+'">'+(s?arrow(s.changePct)+' '+signed(s.changePct,2)+'%':'')+'</span>'+
       '<span class="srow-chips">'+aimPill+(bias?'<span class="pill '+biasCls+'">차트 '+esc(bias)+'</span>':'')+stance+(busy?'<span class="pulse sm" title="분석 중"></span>':'')+'</span>'+
