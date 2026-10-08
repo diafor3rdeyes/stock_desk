@@ -128,10 +128,10 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .srow-drag{border-radius:19px 0 0 19px}
 .srow.on{border-color:var(--accent)}
 .srow-head{display:flex;align-items:stretch}
-.srow-btn{flex:1;min-width:0;display:grid;grid-template-columns:minmax(120px,1.4fr) auto auto minmax(0,1.2fr) 120px 22px;gap:6px 18px;align-items:center;text-align:left;background:none;border:0;padding:16px 8px 16px 22px;cursor:pointer}
+.srow-btn{flex:1;min-width:0;display:grid;grid-template-columns:minmax(150px,1.6fr) auto auto minmax(0,1.2fr) 120px 22px;gap:6px 18px;align-items:center;text-align:left;background:none;border:0;padding:16px 8px 16px 22px;cursor:pointer}
 .srow-id{display:grid;min-width:0}
 .srow-id b{font-size:13px;font-weight:400;color:var(--muted)}
-.srow-name{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.srow-name{font-size:18px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:normal;word-break:keep-all;overflow-wrap:break-word;line-height:1.25}
 .srow-px{font-size:17px;font-weight:700;text-align:right;white-space:nowrap}
 .srow-chg{font-size:14.5px;font-weight:700;text-align:right;min-width:78px}
 .srow-spark{min-width:0;overflow:hidden}
@@ -216,7 +216,7 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
 @media (max-width:760px){
   .srow-btn{grid-template-columns:minmax(0,1fr) auto;padding:14px 2px 14px 12px}
   .srow-id b{overflow-wrap:normal;word-break:keep-all}
-  .srow-name{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;white-space:normal;overflow:hidden;font-size:16px;line-height:1.25}
+  .srow-name{white-space:normal;font-size:16px;line-height:1.25}
   .srow-drag{padding-inline:8px}
   .srow-head{flex-wrap:wrap}
   .srow-btn{flex:1 1 calc(100% - 60px)}
