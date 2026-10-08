@@ -365,6 +365,8 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
 .rec-tbl td,.rec-tbl th{white-space:nowrap}
 .rec-act button{background:none;border:0;color:var(--muted);cursor:pointer;font-size:13px;padding:2px 6px}
 .rec-act button:hover{color:var(--ink)}
+.rec-act .rec-undo{color:var(--accent);font-weight:800;border:1px solid var(--accent);border-radius:999px;padding:4px 10px;margin-right:6px}
+.rec-act .rec-undo:hover{background:var(--accent);color:var(--accent-ink)}
 /* 종목 리스트: 모든 줄이 같은 칸 너비로 정렬되도록 고정 열 */
 @media (min-width:641px){
   .srow-btn{grid-template-columns:minmax(0,1fr) 92px 82px minmax(88px,.7fr) 64px;gap:6px 10px;padding:14px 6px 14px 16px}
@@ -432,12 +434,6 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
       <input id="sym" name="sym" inputmode="latin" placeholder="종목 코드 (예: NVDA, AAPL, 005930)  쉼표로 여러 개 가능" aria-label="종목 코드" maxlength="120">
       <button class="btn" id="go" type="submit">종목 추가</button>
     </form>
-    <div class="examples">예시
-      <button class="chip-btn" type="button" data-s="NVDA">NVDA</button>
-      <button class="chip-btn" type="button" data-s="AAPL">AAPL</button>
-      <button class="chip-btn" type="button" data-s="005930">005930 삼성전자</button>
-      <button class="chip-btn" type="button" data-s="000660">000660 SK하이닉스</button>
-    </div>
     <div id="formErr"></div>
     <div class="filterbar" id="filterbar" role="tablist" aria-label="종목 보기"></div>
     <div class="stocklist" id="list"></div>
@@ -1266,14 +1262,21 @@ function markSold(sym){
 function undoSold(id){
   var i=state.rec.findIndex(function(x){ return x.id===id; }); if(i<0) return;
   var r=state.rec[i]; state.rec.splice(i,1); saveRec();
-  state.pos[r.sym]=(r.lots||[]).slice(); savePos();
+  var cur0=state.pos[r.sym]||[];
+  (r.lots||[]).forEach(function(l){ if(!cur0.some(function(x){ return x.id===l.id; })) cur0.push(l); });
+  cur0.sort(function(a,b){ return a.date<b.date?-1:a.date>b.date?1:0; });
+  state.pos[r.sym]=cur0; savePos();
+  if(state.order.indexOf(r.sym)<0){
+    state.order.push(r.sym); saveWatch();
+    fetchStock(r.sym).then(function(s){ if(!state.reports[r.sym]){ state.reports[r.sym]=newReport(s); } renderList(); }).catch(function(){ renderList(); });
+  }
   renderList(); renderRec();
   if(r.aim>0){
     var rep=state.reports[r.sym];
     state.sells[r.sym]={symbol:r.sym,side:'sell',name:r.name,currency:r.cur,aim:r.aim,dir:'up',alertedAt:null,local:true}; saveAimCache(); renderList();
     aimFetch('/api/aim',{method:'POST',body:JSON.stringify({symbol:r.sym,name:r.name,currency:r.cur,aim:r.aim,price:(rep&&rep.stock&&rep.stock.price)||r.aim,side:'sell'})}).then(function(x){ if(x.status===200&&x.j.ok){ state.sells[r.sym]=x.j.item; saveAimCache(); renderList(); } }).catch(function(){});
   }
-  toast('되돌렸어요. 매수 기록이 다시 내 종목에 돌아왔어요.');
+  toast('↩ 되돌렸어요. '+r.name+'의 매수 기록'+(r.aim>0?'과 매도에임가':'')+'이 내 종목으로 돌아왔어요.');
 }
 function renderRec(){
   var box=$('#recBody'); if(!box) return;
@@ -1293,10 +1296,10 @@ function renderRec(){
       '<td class="num">'+esc(recMoney(r,r.sell))+(r.cur&&r.cur!=='KRW'?'<div class="muted small">환율 '+nf(r.fx,2)+'원</div>':'')+'</td>'+
       '<td class="num '+dir(rt)+'"><b>'+arrow(rt)+' '+signed(rt,2)+'%</b></td>'+
       '<td class="num '+dir(d)+'"><b>'+swon(d)+'</b></td>'+
-      '<td class="rec-act"><button type="button" data-act="recedit" data-id="'+esc(r.id)+'">수정</button>'+
+      '<td class="rec-act"><button type="button" class="rec-undo" data-act="recundo" data-id="'+esc(r.id)+'" title="매도 전 상태로 돌려놓기">↩ 되돌리기</button><button type="button" data-act="recedit" data-id="'+esc(r.id)+'">수정</button>'+
       '<button type="button" data-act="recdel" data-id="'+esc(r.id)+'">'+(state.recArm===r.id?'정말 삭제?':'삭제')+'</button></td></tr>';
   });
-  h+='</tbody></table></div><p class="muted small" style="margin:10px 0 0">매도완료를 누르면 그 종목의 매수 기록은 내 종목에서 빠지고 여기로 옮겨집니다. 수수료·세금은 반영되지 않은 참고용 계산이에요. 잘못 눌렀다면 삭제하면 안 되고, 방금 뜨는 <b>되돌리기</b>를 쓰면 매수 기록이 다시 돌아와요.</p></div>';
+  h+='</tbody></table></div><p class="muted small" style="margin:10px 0 0">매도완료를 누르면 그 종목의 매수 기록은 내 종목에서 빠지고 여기로 옮겨집니다. 수수료·세금은 반영되지 않은 참고용 계산이에요. 잘못 눌렀다면 삭제하지 말고 <b>↩ 되돌리기</b>를 누르세요. 매수 기록(매입가·수량)과 매도에임가가 그대로 내 종목으로 돌아가고, 이 기록은 목록에서 빠집니다.</p></div>';
   box.innerHTML=h;
 }
 function openRecEdit(id){
@@ -1356,9 +1359,9 @@ function rowHtml(sym,i){
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="pos" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 내역·수익률 등록" aria-label="'+esc(code)+' 매수 내역 등록">'+'<span class="reg-t">💰<span class="rl"> 수익률</span></span>'+myLine+'</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="aim" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 에임가 등록" aria-label="'+esc(code)+' 매수 에임가 등록"><span class="reg-t">🎯<span class="rl"> 매수에임가</span></span>'+buySub+'</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="sell" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 에임가 등록" aria-label="'+esc(code)+' 매도 에임가 등록"><span class="reg-t">🏁<span class="rl"> 매도에임가</span></span>'+sellSub+'</button>'+
-    '<button type="button" class="srow-tv srow-reg" data-act="sold" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 완료 — 수익기록에 저장" aria-label="'+esc(code)+' 매도 완료"><span class="reg-t">✅<span class="rl"> 매도완료</span></span></button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="rsi" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="RSI 변화 보기" aria-label="'+esc(code)+' RSI 변화 보기"><span class="reg-t">📈<span class="rl"> RSI '+(rd?nf(rd.now,0):'')+'</span></span>'+rsiLine+'</button>'+
     '<a class="srow-tv" href="'+esc(tvUrl(sym))+'" target="_blank" rel="noopener noreferrer" title="트레이딩뷰 차트로 이동" aria-label="'+esc(code)+' 트레이딩뷰 차트 열기">차트<span class="rl"></span> ↗</a>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="sold" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 완료 — 수익기록에 저장" aria-label="'+esc(code)+' 매도 완료"><span class="reg-t">✅<span class="rl"> 매도완료</span></span></button>'+
     '<button type="button" class="srow-x" data-act="close" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 삭제">×</button></div>'+
     '<div class="slot" data-slot="'+esc(sym)+'"></div></div>';
 }
@@ -1599,6 +1602,7 @@ document.addEventListener('click', function(ev){
   if(act==='filter'){ state.filter=el.dataset.f==='held'?'held':'all'; lsSet('sd_filter',state.filter); renderList(); return; }
   if(act==='regclose'){ closeReg(); return; }
   if(act==='sold'){ markSold(el.dataset.sym); return; }
+  if(act==='recundo'){ undoSold(el.dataset.id); return; }
   if(act==='recedit'){ openRecEdit(el.dataset.id); return; }
   if(act==='recdel'){
     if(state.recArm===el.dataset.id){ state.rec=state.rec.filter(function(x){ return x.id!==el.dataset.id; }); state.recArm=null; saveRec(); renderRec(); }
@@ -1607,7 +1611,7 @@ document.addEventListener('click', function(ev){
   }
   if(act==='code'){ openCodePanel(); return; }
   if(act==='tab'){ if(state.active===el.dataset.sym){ collapse(); } else { show(el.dataset.sym); var sl=document.querySelector('.srow.on'); if(sl) sl.scrollIntoView({behavior:'smooth',block:'nearest'}); } return; }
-  if(act==='close'){ closeTab(el.dataset.sym); return; }
+  if(act==='close'){ var cs=el.dataset.sym, cr=state.reports[cs]; if(window.confirm('정말 삭제하시겠습니까?\n'+(cr?dn(cr.stock):cs))) closeTab(cs); return; }
   if(act==='runall'){ var ra=state.reports[state.active]; if(ra) runAll(ra); return; }
   if(act==='retry'){
     var rb=state.reports[state.active]; if(!rb) return;
