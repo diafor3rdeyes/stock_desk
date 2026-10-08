@@ -157,6 +157,7 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 body.modal-open{overflow:hidden}
 .srow-reg{background:none;border-top:0;border-right:0;border-bottom:0;font-family:inherit;cursor:pointer}
 .srow-reg{flex-direction:column;justify-content:center;gap:2px;text-align:center;line-height:1.25}
+.reg-pl2{font-size:11.5px;font-weight:600;color:var(--muted);white-space:nowrap}
 .reg-pl{font-size:12px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
 .reg-pl.up{color:var(--up)} .reg-pl.down{color:var(--down)} .reg-pl.flat{color:var(--flat)}
 .srow-reg:disabled{opacity:.4;cursor:default}
@@ -234,7 +235,7 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
   .srow-reg .rl{display:none}
   .srow-reg{font-size:16px}
   .reg-pl{font-size:10.5px}
-  .reg-pl .amt{display:none}
+  .reg-pl .amt,.reg-pl2{display:none}
   .srow-px{font-size:15px}
   .srow-name{word-break:keep-all;overflow-wrap:normal}
   .srow-chips .pill{font-size:10.5px;padding:2px 8px}
@@ -344,6 +345,23 @@ td.r,th.r{text-align:right}
 @media (prefers-reduced-motion:reduce){.pulse{animation:none}html{scroll-behavior:auto}}
 .svg-t{fill:var(--muted);font-family:var(--font);font-size:10.5px;font-variant-numeric:tabular-nums}
 .svg-halo{paint-order:stroke;stroke:var(--surface);stroke-width:3px}
+
+/* 종목 리스트: 모든 줄이 같은 칸 너비로 정렬되도록 고정 열 */
+@media (min-width:641px){
+  .srow-btn{grid-template-columns:minmax(0,1fr) 92px 82px minmax(88px,.7fr) 64px;gap:6px 10px;padding:14px 6px 14px 16px}
+  .srow-btn .chev{display:none}
+  .srow-px{text-align:right}
+  .srow-chg{min-width:0;text-align:right}
+  .srow-chips{justify-content:flex-start}
+  .srow-tv{box-sizing:border-box;flex:none;justify-content:center;text-align:center;padding:0 4px;font-size:12.5px}
+  .srow-reg[data-kind=pos]{width:104px;padding-block:8px}
+  .srow-reg[data-kind=aim]{width:92px}
+  .srow-reg[data-kind=sell]{width:146px;padding-block:8px}
+  .srow-reg[data-kind=rsi]{width:92px}
+  a.srow-tv{width:56px}
+  .srow-x{width:40px;padding:0;text-align:center;flex:none}
+  .reg-pl{font-size:11.5px}
+}
 </style>
 </head>
 <body>
@@ -1176,14 +1194,14 @@ function rowHtml(sym,i){
   var r=state.reports[sym], s=r&&r.stock, on=sym===state.active;
   var myPill='', pt0=null;
   if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price,s.currency); if(pt.ret!=null&&pt.cost){ pt0=pt; myPill=1; } }
-  var myLine=''; if(myPill){ myLine='<span class="reg-pl '+dir(pt0.ret)+'">'+signed(pt0.ret,2)+'%<span class="amt"><br>'+swon(pt0.pl)+'</span></span>'; }
+  var myLine=''; if(myPill){ myLine=(pt0.avg?'<span class="reg-pl2 amt" title="평균 매입가(1주당)">매입 '+won(pt0.avg)+'</span>':'')+'<span class="reg-pl '+dir(pt0.ret)+'">'+signed(pt0.ret,2)+'%<span class="amt"><br>'+swon(pt0.pl)+'</span></span>'; }
   var rd=s?rsiDelta(s):null;
   var rsiLine=rd?'<span class="reg-pl '+dir(rd.d)+'">'+(rd.d>0?'▲':rd.d<0?'▼':'')+nf(Math.abs(rd.d),1)+'<span class="amt">  어제보다</span></span>':'';
   var ai=s?aimStatus(sym,s,'buy'):null, si=s?aimStatus(sym,s,'sell'):null;
   function aimSub(x,sell){
     if(!x) return '';
-    var h='<span class="reg-pl '+(x.reached?'up':dir(x.remain))+'" title="목표가 '+esc(money(x.a.aim,s.currency))+'">'+(x.reached?'도달!':signed(x.remain,1)+'%<span class="amt"> 남음</span>')+'</span>';
-    if(sell&&(state.pos[sym]||[]).length){ var q=calcPos(sym,x.a.aim,s.currency); if(q.ret!=null&&q.cost) h+='<span class="reg-pl '+dir(q.ret)+' amt" title="내 매수 기록 기준, 이 가격에 팔 경우">→ '+signed(q.ret,1)+'% · '+swon(q.pl)+'</span>'; }
+    var h=(sell?'<span class="reg-pl2 amt">매도가 '+esc(money(x.a.aim,s.currency))+'</span>':'')+'<span class="reg-pl '+(x.reached?'up':dir(x.remain))+'" title="목표가 '+esc(money(x.a.aim,s.currency))+'">'+(x.reached?'도달!':signed(x.remain,1)+'%<span class="amt"> 남음</span>')+'</span>';
+    if(sell&&(state.pos[sym]||[]).length){ var q=calcPos(sym,x.a.aim,s.currency); if(q.ret!=null&&q.cost) h+='<span class="reg-pl '+dir(q.ret)+' amt" title="내 매수 기록 기준, 이 가격에 팔 경우">→ 이익 '+swon(q.pl)+'</span>'; }
     return h;
   }
   var aimPill='', buySub=aimSub(ai), sellSub=aimSub(si,true);
