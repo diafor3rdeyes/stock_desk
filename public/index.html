@@ -131,11 +131,11 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .srow-btn{flex:1;min-width:0;display:grid;grid-template-columns:minmax(170px,1.6fr) auto auto minmax(0,1.2fr) 120px 22px;gap:6px 18px;align-items:center;text-align:left;background:none;border:0;padding:16px 8px 16px 22px;cursor:pointer}
 .srow-id{display:grid;min-width:0}
 .srow-id b{font-size:13px;font-weight:400;color:var(--muted)}
-.srow-name{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:normal;word-break:normal;overflow-wrap:anywhere;line-height:1.25;min-width:0}
+.srow-name{font-size:17px;font-weight:800;letter-spacing:-.02em;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:clip;line-height:1.25;min-width:0}
 .srow-px{font-size:17px;font-weight:700;text-align:right;white-space:nowrap}
 .srow-chg{font-size:14.5px;font-weight:700;text-align:right;min-width:78px}
-.srow-spark{min-width:0;overflow:hidden;contain:paint}
-.srow-spark .spark{display:block;width:100%;max-width:100%}
+.srow-spark{min-width:0;overflow:hidden;margin-top:4px}
+.srow-spark .spark{display:block;width:100%;max-width:100%;height:22px;margin:0}
 .srow-chips{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
 .srow-spark .spark{margin:0;height:30px}
 .chev{color:var(--muted);font-size:14px}
@@ -217,7 +217,7 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
 @media (max-width:760px){
   .srow-btn{grid-template-columns:minmax(0,1fr) auto;padding:14px 2px 14px 12px}
   .srow-id b{overflow-wrap:normal;word-break:keep-all}
-  .srow-name{white-space:normal;font-size:16px;line-height:1.25}
+  .srow-name{white-space:nowrap;overflow:hidden;text-overflow:clip;font-size:16px;line-height:1.25}
   .srow-drag{padding-inline:8px}
   .srow-head{flex-wrap:wrap}
   .srow-btn{flex:1 1 calc(100% - 60px)}
@@ -373,7 +373,7 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
 .rec-act .rec-undo:hover{background:var(--accent);color:var(--accent-ink)}
 /* 종목 리스트: 모든 줄이 같은 칸 너비로 정렬되도록 고정 열 */
 @media (min-width:641px){
-  .srow-btn{grid-template-columns:minmax(150px,1fr) 92px 82px auto 64px;gap:6px 10px;padding:14px 6px 14px 16px}
+  .srow-btn{grid-template-columns:170px 92px 82px auto;gap:6px 10px;padding:14px 6px 14px 16px}
   .srow-btn .chev{display:none}
   .srow-px{text-align:right}
   .srow-chg{min-width:0;text-align:right}
@@ -392,8 +392,7 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
   .reg-pl{font-size:11.5px}
 }
 @media (min-width:641px) and (max-width:1260px){
-  .srow-btn{grid-template-columns:minmax(120px,1fr) 88px 78px auto}
-  .srow-spark{display:none}
+  .srow-btn{grid-template-columns:150px 88px 78px auto}
 }
 </style>
 </head>
@@ -1356,11 +1355,10 @@ function rowHtml(sym,i){
   return '<div class="srow'+(on?' on':'')+'"><div class="srow-head">'+
     '<button type="button" class="srow-drag" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 순위 '+(i+1)+'위, 위아래 방향키 또는 끌어서 순서 변경" title="끌어서 순위 변경"><span class="rank">'+(i+1)+'</span><span class="grip" aria-hidden="true">⠿</span></button>'+
     '<button type="button" class="srow-btn" data-act="tab" data-sym="'+esc(sym)+'" aria-expanded="'+(on?'true':'false')+'">'+
-      '<span class="srow-id"><span class="srow-name">'+esc(s?dn(s):code)+'</span><b>'+esc(code)+'</b></span>'+
+      '<span class="srow-id"><span class="srow-name">'+esc(s?dn(s):code)+'</span><b>'+esc(code)+'</b><span class="srow-spark">'+(closes.length?sparkline(closes, s&&s.changePct<0?'var(--down)':'var(--up)'):'')+'</span></span>'+
       '<span class="srow-px num">'+(s?money(s.price,s.currency):'–')+'</span>'+
       '<span class="srow-chg num '+(s?dir(s.changePct):'flat')+'">'+(s?arrow(s.changePct)+' '+signed(s.changePct,2)+'%':'')+'</span>'+
       '<span class="srow-chips">'+aimPill+(bias?'<span class="pill '+biasCls+'">차트 '+esc(bias)+'</span>':'')+stance+(busy?'<span class="pulse sm" title="분석 중"></span>':'')+'</span>'+
-      '<span class="srow-spark">'+(closes.length?sparkline(closes, s&&s.changePct<0?'var(--down)':'var(--up)'):'')+'</span>'+
       '<span class="chev" aria-hidden="true">'+(on?'▴':'▾')+'</span>'+
     '</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="pos" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 내역·수익률 등록" aria-label="'+esc(code)+' 매수 내역 등록">'+'<span class="reg-t">💰<span class="rl"> 수익률</span></span>'+myLine+'</button>'+
