@@ -176,6 +176,9 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
 .idx-card{display:block;color:inherit;text-decoration:none;transition:transform .12s,border-color .12s}
 .idx-card:hover{transform:translateY(-2px);border-color:var(--accent)}
 .idx-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+/* 리포트(기업 요약~결론) 글자는 더 밝은 흰색 */
+#report{--ink:#ffffff;--muted:#dcd8cc;color:#ffffff}
+#report .muted,#report .small{color:#dcd8cc}
 /* 시장 현황을 작게 */
 .main{gap:28px;padding-block:24px 56px}
 #market .sec-title{margin-bottom:10px}
@@ -239,6 +242,7 @@ body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
   .srow-reg{padding:0 6px}
 }
 .slot:not(:empty){border-top:1px solid var(--line);background:var(--bg);padding:22px 20px 26px;border-radius:0 0 19px 19px}
+.slot.closing{opacity:0;transform:translateY(-8px);transition:opacity .18s ease,transform .18s ease}
 @media (max-width:760px){.slot:not(:empty){padding:16px 12px 20px}}
 .pulse.sm{width:8px;height:8px;display:inline-block}
 
@@ -1094,6 +1098,14 @@ function renderAim(rep){
         :'<span class="pill aim">'+(st.a.dir==='down'?'앞으로 ':'앞으로 ')+signed(st.remain,2)+'% '+(st.a.dir==='down'?'내려오면 알림':'올라가면 알림')+'</span>');
   } else h+='<span class="muted">아직 '+W+' 에임가가 없습니다.</span>';
   h+='</div>';
+  if(side==='sell'){
+    if(st&&(state.pos[sym]||[]).length){
+      var q=calcPos(sym,st.a.aim,cur), now=calcPos(sym,s.price,cur);
+      if(q.ret!=null&&q.cost) h+='<div class="rsi-week '+dir(q.ret)+'" style="font-size:15px"><div><b>내 매수 기록 기준</b> · 평균 매입가 '+won(q.avg)+' · 보유 '+nf(q.sh,q.sh%1?4:0)+'주</div>'+
+        '<div style="margin-top:4px">이 가격에 팔면 <b>수익률 '+signed(q.ret,2)+'% · 수익금 '+swon(q.pl)+'</b></div>'+
+        '<div class="muted small" style="margin-top:2px">지금 팔면 '+signed(now.ret,2)+'% · '+swon(now.pl)+' → 목표까지 '+signed(q.ret-now.ret,2)+'%p 더 필요 (수수료·세금 제외)</div></div>';
+    } else if(st) h+='<p class="muted small" style="margin:0 0 10px">💰 수익률에 매수 기록을 남겨 두면, 이 가격에 팔 때 예상 수익률과 수익금도 함께 보여드려요.</p>';
+  }
   h+='<form class="pos-form" id="aimForm" novalidate style="margin-top:0"><label>'+W+' 에임가 ('+esc(cur||'')+')<input type="text" inputmode="decimal" id="aimPx" placeholder="예: '+(cur==='KRW'?nf(Math.round(s.price*(side==='sell'?1.1:0.9)),0):nf(s.price*(side==='sell'?1.1:0.9),2))+'" value="'+esc(keep)+'"></label><button class="btn" type="submit">'+(st?W+' 에임가 변경':W+' 에임가 설정')+'</button></form><div id="aimErr"></div>';
   h+='<div class="aim-acts">'+(st?'<button class="btn ghost" type="button" data-act="aimdel">'+W+' 에임가 해제</button>':'')+'<button class="btn ghost" type="button" data-act="aimtest">슬랙 테스트 메시지 보내기</button></div>';
   if(state.aimServer===false) h+='<div class="aim-warn">⚠ '+esc(state.aimErr||'알림 서버에 연결하지 못했습니다.')+' 이 상태에서는 목록의 남은 % 표시만 되고, 슬랙 알림은 가지 않습니다.</div>';
@@ -1167,10 +1179,14 @@ function rowHtml(sym,i){
   var myLine=''; if(myPill){ myLine='<span class="reg-pl '+dir(pt0.ret)+'">'+signed(pt0.ret,2)+'%<span class="amt"><br>'+swon(pt0.pl)+'</span></span>'; }
   var rd=s?rsiDelta(s):null;
   var rsiLine=rd?'<span class="reg-pl '+dir(rd.d)+'">'+(rd.d>0?'▲':rd.d<0?'▼':'')+nf(Math.abs(rd.d),1)+'<span class="amt">  어제보다</span></span>':'';
-  var aimPill='', ai=s?aimStatus(sym,s,'buy'):null;
-  if(ai) aimPill=ai.reached?'<span class="pill good" title="매수 에임가 도달">🎯 매수 에임가 도달</span>':'<span class="pill aim" title="매수 에임가 '+esc(money(ai.a.aim,s.currency))+'">🎯 매수 '+signed(ai.remain,1)+'%</span>';
-  var si=s?aimStatus(sym,s,'sell'):null;
-  if(si) aimPill+=si.reached?'<span class="pill good" title="매도 에임가 도달">🏁 매도 에임가 도달</span>':'<span class="pill aim" title="매도 에임가 '+esc(money(si.a.aim,s.currency))+'">🏁 매도 '+signed(si.remain,1)+'%</span>';
+  var ai=s?aimStatus(sym,s,'buy'):null, si=s?aimStatus(sym,s,'sell'):null;
+  function aimSub(x,sell){
+    if(!x) return '';
+    var h='<span class="reg-pl '+(x.reached?'up':dir(x.remain))+'" title="목표가 '+esc(money(x.a.aim,s.currency))+'">'+(x.reached?'도달!':signed(x.remain,1)+'%<span class="amt"> 남음</span>')+'</span>';
+    if(sell&&(state.pos[sym]||[]).length){ var q=calcPos(sym,x.a.aim,s.currency); if(q.ret!=null&&q.cost) h+='<span class="reg-pl '+dir(q.ret)+' amt" title="내 매수 기록 기준, 이 가격에 팔 경우">→ '+signed(q.ret,1)+'% · '+swon(q.pl)+'</span>'; }
+    return h;
+  }
+  var aimPill='', buySub=aimSub(ai), sellSub=aimSub(si,true);
   var code=sym.replace(/\.(KS|KQ)$/,'');
   var busy=r&&(PARTS.some(function(p){ return r.status[p]==='loading'; })||r.cStatus==='loading');
   var closes=s?s.rows.slice(-40).map(function(x){ return x.c; }):[];
@@ -1189,8 +1205,8 @@ function rowHtml(sym,i){
       '<span class="chev" aria-hidden="true">'+(on?'▴':'▾')+'</span>'+
     '</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="pos" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 내역·수익률 등록" aria-label="'+esc(code)+' 매수 내역 등록">'+'<span class="reg-t">💰<span class="rl"> 수익률</span></span>'+myLine+'</button>'+
-    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="aim" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 에임가 등록" aria-label="'+esc(code)+' 매수 에임가 등록">🎯<span class="rl"> 매수에임가</span></button>'+
-    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="sell" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 에임가 등록" aria-label="'+esc(code)+' 매도 에임가 등록">🏁<span class="rl"> 매도에임가</span></button>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="aim" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매수 에임가 등록" aria-label="'+esc(code)+' 매수 에임가 등록"><span class="reg-t">🎯<span class="rl"> 매수에임가</span></span>'+buySub+'</button>'+
+    '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="sell" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="매도 에임가 등록" aria-label="'+esc(code)+' 매도 에임가 등록"><span class="reg-t">🏁<span class="rl"> 매도에임가</span></span>'+sellSub+'</button>'+
     '<button type="button" class="srow-tv srow-reg" data-act="reg" data-kind="rsi" data-sym="'+esc(sym)+'"'+(s?'':' disabled')+' title="RSI 변화 보기" aria-label="'+esc(code)+' RSI 변화 보기"><span class="reg-t">📈<span class="rl"> RSI '+(rd?nf(rd.now,0):'')+'</span></span>'+rsiLine+'</button>'+
     '<a class="srow-tv" href="'+esc(tvUrl(sym))+'" target="_blank" rel="noopener noreferrer" title="트레이딩뷰 차트로 이동" aria-label="'+esc(code)+' 트레이딩뷰 차트 열기">차트<span class="rl"></span> ↗</a>'+
     '<button type="button" class="srow-x" data-act="close" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 삭제">×</button></div>'+
@@ -1456,7 +1472,23 @@ function closeActive(){
   var row=[].slice.call(document.querySelectorAll('.srow-drag')).filter(function(x){ return x.getAttribute('data-sym')===sym; })[0];
   if(row){ var rr=row.closest('.srow'); if(rr) rr.scrollIntoView({behavior:'smooth',block:'center'}); }
 }
-$('#floatClose').addEventListener('click', closeActive);
+function closeSoft(scroll){
+  var sym=state.active; if(!sym) return;
+  var slot=document.querySelector('.srow.on .slot');
+  if(!slot){ collapse(); return; }
+  slot.classList.add('closing');
+  setTimeout(function(){ if(state.active===sym){ if(scroll) closeActive(); else collapse(); } },200);
+}
+$('#floatClose').addEventListener('click', function(){ closeSoft(true); });
+/* 열린 페이지 바깥을 누르면 부드럽게 닫힌다 */
+document.addEventListener('click', function(ev){
+  if(!state.active) return;
+  var el=ev.target; if(!el||!el.closest||!el.isConnected) return;
+  if(el.closest('.srow')||el.closest('#reg')||el.closest('#closeWrap')||el.closest('.codepanel')||el.closest('.float-close')||el.closest('.regov')) return;
+  var sel=window.getSelection&&window.getSelection(); if(sel&&String(sel).length>0) return;
+  if(!document.getElementById('reg').hidden) return;
+  closeSoft(false);
+});
 document.addEventListener('keydown', function(ev){
   if(ev.key!=='Escape'||!state.active) return;
   var t=ev.target&&ev.target.tagName; if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;
