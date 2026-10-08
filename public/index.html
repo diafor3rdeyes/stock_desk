@@ -880,7 +880,7 @@ function compactTech(t){
   };
 }
 
-var WATCH_KEY='sd_watch', ACTIVE_KEY='sd_active', MAX_TABS=10;
+var WATCH_KEY='sd_watch', ACTIVE_KEY='sd_active', MAX_TABS=30;
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
 function saveWatch(){ lsSet(WATCH_KEY, JSON.stringify(state.order)); lsSet(ACTIVE_KEY, state.active||''); queueSync(); }
@@ -965,10 +965,22 @@ function pullServer(merge){
     if(!d||(!(d.watch||[]).length&&!Object.keys(d.pos||{}).length&&!(d.rec||[]).length)){
       syncReady=true; restoreWatch(); loadAims(); if(localData().watch.length||Object.keys(localData().pos).length||(state.rec||[]).length) pushNow(false); else syncStat('✓ 서버에 자동 저장됩니다'); return;
     }
-    var out=d;
-    if(merge){ var m=mergeData(d,localData()); out=m; }
-    applyData(out); syncReady=true;
-    if(merge) pushNow(false); else syncStat('✓ 서버에서 불러옴 '+nowStr());
+    var pre=Promise.resolve(d);
+    if(!(d.watch||[]).length && !lsGet('sd_rebuilt_v1')){ // 목록만 비어 있고 기록/에임가가 남아 있으면 한 번 복구
+      pre=authFetch('/api/aim').then(function(y){
+        var w=[]; function add(x){ if(x&&w.indexOf(x)<0) w.push(x); }
+        Object.keys(d.pos||{}).forEach(add);
+        if(y.status===200&&y.j.ok) (y.j.items||[]).forEach(function(i){ add(i.symbol); });
+        lsSet('sd_rebuilt_v1','1');
+        return w.length?Object.assign({},d,{watch:w.slice(0,MAX_TABS)}):d;
+      }).catch(function(){ return d; });
+    }
+    return pre.then(function(d2){
+      var out=d2;
+      if(merge){ var m=mergeData(d2,localData()); out=m; }
+      applyData(out); syncReady=true;
+      if(merge||d2!==d) pushNow(false); else syncStat('✓ 서버에서 불러옴 '+nowStr());
+    });
   }).catch(function(){ syncStat('⚠ 서버에 연결하지 못했습니다 (이 기기 데이터를 표시 중)'); restoreWatch(); loadAims(); });
 }
 function handleGoogle(resp){
@@ -1591,6 +1603,7 @@ function restoreWatch(){
   if(!Array.isArray(saved)||!saved.length) return;
   saved=saved.filter(function(x){ return typeof x==='string'; }).slice(0,MAX_TABS);
   var want=lsGet(ACTIVE_KEY);
+  state.missing=saved.slice(); // 불러오는 동안에도 서버로 보내는 목록이 비지 않게 한다 (전부 불러온 뒤 실제 실패분만 남김)
   Promise.all(saved.map(function(sym){ return fetchStock(sym).then(function(s){ return s; }, function(){ return null; }); })).then(function(list){
     state.missing=saved.filter(function(sym,i){ return !list[i]; }); // 일시적으로 못 불러온 종목은 서버 목록에서 지우지 않는다
     list.forEach(function(s){ if(s && !state.reports[s.symbol]){ state.reports[s.symbol]=newReport(s); state.order.push(s.symbol); } });
