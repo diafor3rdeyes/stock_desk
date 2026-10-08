@@ -62,6 +62,13 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .pnav a:hover,.codebtn:hover{background:var(--navy);color:var(--navy-ink);border-color:var(--navy)}
 .codepanel{display:none;gap:8px;align-items:center;flex-wrap:wrap;padding-bottom:12px}
 .codepanel.open{display:flex}
+.authpanel{flex-direction:column;align-items:stretch;gap:8px}
+.authform{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.authin{display:flex;gap:12px;flex-wrap:wrap;align-items:center;font-size:14px}
+.authform[hidden],.authin[hidden]{display:none}
+.authmsg{min-height:0}
+.authmsg:empty{display:none}
+.authmsg.bad{color:var(--up)}
 .codepanel input{flex:1;min-width:160px;max-width:260px;border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:8px 16px}
 .hero{background:linear-gradient(180deg,var(--band) 0,var(--hero) 100%);padding-block:56px 44px}
 .hero h1{font-size:clamp(34px,6.4vw,60px);font-weight:800;line-height:1.16;letter-spacing:-.045em}
@@ -148,6 +155,24 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
 .srow.dragging{position:relative;z-index:5;opacity:.92;box-shadow:0 14px 34px rgba(0,0,0,.22);transition:none;border-color:var(--accent)}
 .srow.dropbefore{box-shadow:0 -3px 0 0 var(--accent)}
 .srow.dropafter{box-shadow:0 3px 0 0 var(--accent)}
+.srow-tv{flex:none;display:flex;align-items:center;padding:0 14px;font-size:13px;font-weight:800;color:var(--accent);white-space:nowrap;text-decoration:none;border-left:1px solid var(--line)}
+.srow-tv:hover{background:var(--surface2)}
+.srow-tv:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.pill.aim{background:var(--surface);color:var(--accent);border:1px solid var(--accent)}
+.aim-st{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:0 0 12px}
+.aim-warn{margin-top:12px;padding:11px 14px;border-radius:12px;background:var(--warn-soft);border:1px solid var(--line);font-size:13.5px}
+.aim-acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.srow-ph{border:2px dashed var(--accent);border-radius:20px;background:var(--surface2);opacity:.7;box-sizing:border-box}
+.srow.dragging{box-shadow:0 18px 40px rgba(0,0,0,.28);opacity:.97;cursor:grabbing;transition:none}
+.srow.dragging .slot{display:none}
+body.is-dragging{user-select:none;-webkit-user-select:none;cursor:grabbing}
+.idx-card{display:block;color:inherit;text-decoration:none;transition:transform .12s,border-color .12s}
+.idx-card:hover{transform:translateY(-2px);border-color:var(--accent)}
+.idx-card:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.idx-go{font-size:12px;color:var(--accent);font-weight:700}
+.float-close{position:fixed;right:18px;bottom:22px;z-index:60;border:0;border-radius:999px;background:var(--navy);color:var(--navy-ink);font-weight:800;font-size:14.5px;padding:13px 22px;cursor:pointer;box-shadow:0 10px 28px rgba(0,0,0,.3);max-width:calc(100vw - 36px);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.float-close:hover{filter:brightness(1.15)}
+.float-close:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
 .srow-x{background:none;border:0;padding:0 20px 0 10px;cursor:pointer;color:var(--muted);font-size:22px;line-height:1}
 .srow-x:hover{color:var(--ink)}
 @media (max-width:760px){
@@ -159,6 +184,7 @@ button,input{font:inherit;color:inherit;letter-spacing:inherit}
   .srow-spark{display:none}
   .chev{grid-column:3;grid-row:1}
   .srow-x{padding:0 14px 0 6px}
+  .srow-tv{padding:0 9px;font-size:12px}
 }
 .slot:not(:empty){border-top:1px solid var(--line);background:var(--bg);padding:22px 20px 26px}
 @media (max-width:760px){.slot:not(:empty){padding:16px 12px 20px}}
@@ -270,10 +296,19 @@ td.r,th.r{text-align:right}
     <a class="brand" href="#">종목<span>분석데스크</span></a>
     <div class="bar-r">
       <nav class="pnav" aria-label="바로가기"><a href="#market">시장 현황</a><a href="#watch">내 종목</a></nav>
+      <button class="codebtn" id="authBtn" type="button">구글 로그인</button>
       <button class="codebtn" id="codeBtn" type="button">접근 코드</button>
     </div>
   </div>
   <div class="wrap">
+    <div class="codepanel authpanel" id="authPanel">
+      <div id="authForm" class="authform"><div id="gBtn"></div><span class="small muted" id="gHint">구글 계정으로 로그인하면 종목과 매수 기록이 서버에 저장됩니다.</span></div>
+      <div id="authIn" class="authin" hidden>
+        <span><b id="authName"></b> 님으로 로그인됨 · <span id="syncStat" class="muted">서버에 자동 저장됩니다</span></span>
+        <button class="btn ghost" id="authLogout" type="button">로그아웃</button>
+      </div>
+      <div id="authMsg" class="small authmsg"></div>
+    </div>
     <div class="codepanel" id="codePanel">
       <input id="codeInput" type="password" placeholder="AI 분석용 접근 코드" autocomplete="off">
       <button class="btn ghost" id="codeSave" type="button">저장</button>
@@ -312,6 +347,7 @@ td.r,th.r{text-align:right}
   </section>
 </main>
 
+<button id="floatClose" class="float-close" type="button" hidden></button>
 <div id="holder" hidden><section class="report" id="report" hidden></section></div>
 
 <script>
@@ -392,6 +428,13 @@ function sparkline(vals, color){
 
 function rsiLabel(r){ return r>=70 ? '과매수 구간' : r<=30 ? '과매도 구간' : r>=55 ? '상승 우위' : r<=45 ? '하락 우위' : '중립'; }
 
+var TV_INDEX={SPY:'AMEX:SPY',NDX:'TVC:NDX',DJI:'TVC:DJI',KOSPI:'KRX:KOSPI'};
+function tvUrl(sym){
+  var m=String(sym).match(/^(\d{6})\.(KS|KQ)$/), t=m?'KRX:'+m[1]:String(sym).replace(/-/g,'.');
+  return 'https://www.tradingview.com/chart/?symbol='+encodeURIComponent(t);
+}
+function tvIndexUrl(ix){ return 'https://www.tradingview.com/chart/?symbol='+encodeURIComponent(TV_INDEX[ix.id]||TV_INDEX[ix.symbol]||ix.symbol); }
+
 function renderMarket(d){
   var fg=d.fearGreed, html='';
   if(fg && !fg.error){
@@ -406,14 +449,14 @@ function renderMarket(d){
   }
   html += '<div class="idx-grid">';
   d.indexes.forEach(function(ix){
-    if(ix.error){ html += '<div class="card"><div class="idx-name">'+esc(ix.name)+'</div><p class="muted small">불러오지 못했습니다 ('+esc(ix.error)+')</p></div>'; return; }
+    if(ix.error){ html += '<a class="card idx-card" href="'+esc(tvIndexUrl(ix))+'" target="_blank" rel="noopener noreferrer"><div class="idx-name">'+esc(ix.name)+'</div><p class="muted small">불러오지 못했습니다 ('+esc(ix.error)+')</p><span class="idx-go">차트 보기 ↗</span></a>'; return; }
     var c=dir(ix.changePct), r=ix.rsi14, rcol=ix.changePct>=0?'var(--up)':'var(--down)';
-    html += '<div class="card"><div class="idx-head"><span class="idx-name">'+esc(ix.name)+'</span><span class="small muted">'+esc(ix.sub)+'</span></div>'+
+    html += '<a class="card idx-card" href="'+esc(tvIndexUrl(ix))+'" target="_blank" rel="noopener noreferrer" title="트레이딩뷰 차트로 보기"><div class="idx-head"><span class="idx-name">'+esc(ix.name)+' <span class="idx-go">차트 ↗</span></span><span class="small muted">'+esc(ix.sub)+'</span></div>'+
       '<div class="idx-price num">'+nf(ix.price, ix.price>=1000?2:2)+'</div>'+
       '<div class="idx-chg num '+c+'">'+arrow(ix.changePct)+' '+nf(Math.abs(ix.change),2)+' ('+signed(ix.changePct,2)+'%)</div>'+
       '<div class="rsi-row"><div class="rsi-top"><span>RSI (14일)</span><span><b class="num">'+(isNum(r)?nf(r,1):'–')+'</b> · '+(isNum(r)?rsiLabel(r):'')+'</span></div>'+
       '<div class="rsi-track"><span class="rsi-dot" style="left:'+(isNum(r)?Math.max(1,Math.min(99,r)):50)+'%"></span></div></div>'+
-      sparkline(ix.spark, rcol)+'</div>';
+      sparkline(ix.spark, rcol)+'</a>';
   });
   html += '</div>';
   $('#marketBody').innerHTML = html;
@@ -444,10 +487,12 @@ function skeleton(s){
   var t=s.tech, pos=(t.high52>t.low52)?((s.price-t.low52)/(t.high52-t.low52)*100):50;
   var yahoo='https://finance.yahoo.com/quote/'+encodeURIComponent(s.symbol);
   return ''+
-  '<div class="card"><div class="rhead"><div><div class="rname">'+esc(s.name)+'</div><div class="rsym">'+esc(s.symbol)+' · '+esc(s.exchange||'')+' · '+esc(cur||'')+' · 기준 '+dateFull(s.asOf)+' · <a href="'+yahoo+'" target="_blank" rel="noopener">Yahoo ↗</a></div><div style="margin-top:8px"><button class="btn ghost" data-act="runall" type="button">AI 분석 다시 실행</button></div></div>'+
+  '<div class="card"><div class="rhead"><div><div class="rname">'+esc(s.name)+'</div><div class="rsym">'+esc(s.symbol)+' · '+esc(s.exchange||'')+' · '+esc(cur||'')+' · 기준 '+dateFull(s.asOf)+' · <a href="'+yahoo+'" target="_blank" rel="noopener">Yahoo ↗</a> · <a href="'+esc(tvUrl(s.symbol))+'" target="_blank" rel="noopener noreferrer">TradingView 차트 ↗</a></div><div style="margin-top:8px"><button class="btn ghost" data-act="runall" type="button">AI 분석 다시 실행</button></div></div>'+
     '<div><div class="rprice num">'+money(s.price,cur)+'</div><div class="num '+c+'" style="text-align:right">'+arrow(s.changePct)+' '+signed(s.changePct,2)+'%</div></div></div>'+
     '<div class="range52"><div class="range-labels"><span>52주 최저 <span class="num">'+plain(t.low52,cur)+'</span></span><span>52주 최고 <span class="num">'+plain(t.high52,cur)+'</span></span></div>'+
     '<div class="range-bar"><i style="left:'+pos.toFixed(1)+'%"></i></div></div></div>'+
+
+  '<div class="step" id="sec-aim"><div class="step-h"><h2>매수 에임가</h2><span class="tag">목표 가격에 닿으면 슬랙 #매수에임알람으로 알려드려요</span></div><div id="box-aim"></div></div>'+
 
   '<div class="step" id="sec-pos"><div class="step-h"><h2>내 수익률</h2><span class="tag">매수일·매입가·수량을 적으면 자동 계산 · 이 기기에만 저장</span></div><div id="box-pos"></div></div>'+
 
@@ -736,7 +781,7 @@ function compactTech(t){
 var WATCH_KEY='sd_watch', ACTIVE_KEY='sd_active', MAX_TABS=10;
 function lsGet(k){ try{ return localStorage.getItem(k); }catch(e){ return null; } }
 function lsSet(k,v){ try{ localStorage.setItem(k,v); }catch(e){} }
-function saveWatch(){ lsSet(WATCH_KEY, JSON.stringify(state.order)); lsSet(ACTIVE_KEY, state.active||''); }
+function saveWatch(){ lsSet(WATCH_KEY, JSON.stringify(state.order)); lsSet(ACTIVE_KEY, state.active||''); queueSync(); }
 
 var RENDER={ company:function(d){ renderCompany(d); }, news:function(d){ renderNews(d); }, outlook:function(d,rep){ renderOutlook(d, rep.stock); } };
 var LOAD_MSG={ company:'기업 정보를 정리하는 중… (보통 5~15초)', news:'최근 뉴스를 정리하는 중… (보통 5~15초)', outlook:'2주 시나리오를 정리하는 중… (보통 5~15초)' };
@@ -745,11 +790,124 @@ function newReport(s){ return { stock:s, ai:{}, status:{}, err:{}, conclusion:nu
 function isActive(rep){ return state.active===rep.stock.symbol && state.reports[rep.stock.symbol]===rep; }
 function idleBox(){ return '<div class="card"><p class="muted">AI 분석을 아직 실행하지 않았습니다. AI 호출 비용이 들어서, 저장된 종목은 누르기 전에는 돌리지 않습니다.</p><p style="margin-top:10px"><button class="btn ghost" data-act="runall" type="button">AI 분석 실행</button></p></div>'; }
 
+/* ---------- 계정 로그인 · 서버 저장 (종목·매수 기록이 기기 데이터 삭제로 사라지지 않게) ---------- */
+var TOKEN_KEY='sd_token', USER_KEY='sd_user', LABEL_KEY='sd_user_label';
+var authUser=lsGet(USER_KEY)||'', authLabel=lsGet(LABEL_KEY)||'', googleReady=false, syncReady=false, syncTimer=0, syncBusy=false;
+function authToken(){ return lsGet(TOKEN_KEY)||''; }
+function authHeaders(){ var t=authToken(); return t?{authorization:'Bearer '+t}:{}; }
+function authFetch(path,opt){
+  opt=opt||{}; opt.headers=Object.assign({'content-type':'application/json','x-access-code':getCode()},authHeaders(),opt.headers||{});
+  return fetch(path,opt).then(function(r){ return r.json().then(function(j){ return {status:r.status,j:j}; },function(){ return {status:r.status,j:{}}; }); });
+}
+function authMsg(t,bad){ var m=$('#authMsg'); m.textContent=t||''; m.className='small authmsg'+(bad?' bad':''); }
+function syncStat(t){ var e=$('#syncStat'); if(e) e.textContent=t; }
+function paintAuth(){
+  var on=!!(authToken()&&authUser);
+  $('#authBtn').textContent=on?'👤 '+(authLabel||authUser).split('@')[0]:'구글 로그인';
+  $('#authForm').hidden=on; $('#authIn').hidden=!on; $('#authName').textContent=authLabel||authUser;
+}
+function nowStr(){ var d=new Date(Date.now()+9*3600*1000); return ('0'+d.getUTCHours()).slice(-2)+':'+('0'+d.getUTCMinutes()).slice(-2); }
+function payload(){
+  var w=state.order.slice(); (state.missing||[]).forEach(function(x){ if(w.indexOf(x)<0) w.push(x); });
+  return {watch:w, active:state.active||'', pos:state.pos};
+}
+function queueSync(){
+  if(!authToken()||!syncReady) return;
+  clearTimeout(syncTimer); syncStat('저장 중…'); syncTimer=setTimeout(function(){ pushNow(false); },1000);
+}
+function pushNow(keep){
+  if(!authToken()) return Promise.resolve();
+  clearTimeout(syncTimer);
+  return fetch('/api/data',{method:'PUT',keepalive:!!keep,headers:Object.assign({'content-type':'application/json'},authHeaders()),body:JSON.stringify(payload())}).then(function(r){
+    if(r.status===401){ forgetLogin('로그인이 만료되었습니다. 다시 구글로 로그인해 주세요.'); return; }
+    if(!r.ok) throw new Error('save');
+    syncStat('✓ 서버에 저장됨 '+nowStr());
+  }).catch(function(){ syncStat('⚠ 저장 실패 — 인터넷 연결을 확인해 주세요'); });
+}
+window.addEventListener('pagehide',function(){ if(syncTimer&&authToken()&&syncReady) pushNow(true); });
+document.addEventListener('visibilitychange',function(){ if(document.visibilityState==='hidden'&&syncTimer&&authToken()&&syncReady) pushNow(true); });
+
+function forgetLogin(msg){
+  try{ localStorage.removeItem(TOKEN_KEY); localStorage.removeItem(USER_KEY); localStorage.removeItem(LABEL_KEY); }catch(e){}
+  authUser=''; authLabel=''; syncReady=false; paintAuth(); if(msg){ authMsg(msg,true); $('#authPanel').classList.add('open'); }
+}
+function mergeData(a,b){ // 서버 a + 이 기기 b 를 합친다(중복 제거)
+  var watch=a.watch.slice(); (b.watch||[]).forEach(function(x){ if(watch.indexOf(x)<0) watch.push(x); });
+  var pos={}, k;
+  Object.keys(a.pos||{}).forEach(function(sym){ pos[sym]=a.pos[sym].slice(); });
+  Object.keys(b.pos||{}).forEach(function(sym){
+    var cur=pos[sym]=pos[sym]||[]; (b.pos[sym]||[]).forEach(function(l){ if(l.k===3&&!cur.some(function(x){ return x.id===l.id; })) cur.push(l); });
+    cur.sort(function(x,y){ return x.date<y.date?-1:x.date>y.date?1:0; });
+  });
+  return {watch:watch.slice(0,MAX_TABS), pos:pos, active:a.active};
+}
+function applyData(d){
+  state.pos=d.pos||{}; lsSet(POS_KEY,JSON.stringify(state.pos));
+  lsSet(WATCH_KEY,JSON.stringify(d.watch||[])); lsSet(ACTIVE_KEY,d.active||'');
+  state.reports={}; state.order=[]; state.active=null;
+  var r=$('#report'); r.hidden=true; r.innerHTML='';
+  renderList(); restoreWatch(); loadAims();
+}
+function localData(){
+  var w=[],p={}; try{ w=JSON.parse(lsGet(WATCH_KEY)||'[]'); }catch(e){} try{ p=JSON.parse(lsGet(POS_KEY)||'{}'); }catch(e){}
+  return {watch:Array.isArray(w)?w.filter(function(x){ return typeof x==='string'; }):[], pos:(p&&typeof p==='object')?p:{}, active:lsGet(ACTIVE_KEY)||''};
+}
+// 서버 데이터를 불러온다. merge=true 는 방금 로그인했을 때(이 기기 데이터와 합침), false 는 페이지를 열 때(서버가 기준).
+function pullServer(merge){
+  return authFetch('/api/data').then(function(x){
+    if(x.status===401){ forgetLogin('로그인이 만료되었습니다. 다시 구글로 로그인해 주세요.'); restoreWatch(); loadAims(); return; }
+    if(!(x.status===200&&x.j.ok)){ syncStat('⚠ 서버에서 불러오지 못했습니다 (이 기기 데이터를 표시 중)'); restoreWatch(); loadAims(); return; }
+    var d=x.j.data;
+    if(!d||(!(d.watch||[]).length&&!Object.keys(d.pos||{}).length)){
+      syncReady=true; restoreWatch(); loadAims(); if(localData().watch.length||Object.keys(localData().pos).length) pushNow(false); else syncStat('✓ 서버에 자동 저장됩니다'); return;
+    }
+    var out=d;
+    if(merge){ var m=mergeData(d,localData()); out=m; }
+    applyData(out); syncReady=true;
+    if(merge) pushNow(false); else syncStat('✓ 서버에서 불러옴 '+nowStr());
+  }).catch(function(){ syncStat('⚠ 서버에 연결하지 못했습니다 (이 기기 데이터를 표시 중)'); restoreWatch(); loadAims(); });
+}
+function handleGoogle(resp){
+  if(!resp||!resp.credential){ authMsg('구글 로그인이 취소되었습니다.',true); return; }
+  authMsg('로그인하는 중…');
+  authFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'google',credential:resp.credential,code:getCode()})}).then(function(x){
+    if(x.status===200&&x.j.ok){
+      lsSet(TOKEN_KEY,x.j.token); lsSet(USER_KEY,x.j.username); lsSet(LABEL_KEY,x.j.label||''); authUser=x.j.username; authLabel=x.j.label||'';
+      authMsg(''); paintAuth(); syncStat('불러오는 중…'); pullServer(true);
+    } else authMsg(x.j.error||(x.status===503?'서버 저장소(KV)가 아직 연결되지 않았습니다.':'로그인하지 못했습니다.'),true);
+  }).catch(function(){ authMsg('서버에 연결하지 못했습니다.',true); });
+}
+function googleSetup(){
+  if(googleReady||authToken()) return;
+  fetch('/api/auth?config=1').then(function(r){ return r.json(); }).then(function(c){
+    if(!c||!c.googleClientId){ authMsg('구글 로그인 설정이 아직 끝나지 않았습니다. (서버에 GOOGLE_CLIENT_ID가 필요합니다)',true); $('#gHint').hidden=true; return; }
+    var go=function(){
+      try{
+        google.accounts.id.initialize({client_id:c.googleClientId,callback:handleGoogle,auto_select:false});
+        google.accounts.id.renderButton($('#gBtn'),{theme:'outline',size:'large',text:'signin_with',shape:'pill',locale:'ko'});
+        googleReady=true;
+      }catch(e){ authMsg('구글 로그인 버튼을 불러오지 못했습니다.',true); }
+    };
+    if(window.google&&window.google.accounts) go();
+    else { var sc=document.createElement('script'); sc.src='https://accounts.google.com/gsi/client'; sc.async=true; sc.onload=go; sc.onerror=function(){ authMsg('구글 로그인 스크립트를 불러오지 못했습니다. 인터넷 연결이나 차단 프로그램을 확인해 주세요.',true); }; document.head.appendChild(sc); }
+  }).catch(function(){ authMsg('서버에 연결하지 못했습니다.',true); });
+}
+function doLogout(){
+  var t=authToken();
+  (t?pushNow(false):Promise.resolve()).then(function(){ return authFetch('/api/auth',{method:'POST',body:JSON.stringify({action:'logout'})}).catch(function(){}); }).then(function(){
+    [WATCH_KEY,ACTIVE_KEY,POS_KEY,'sd_aim',FX_KEY].forEach(function(k){ try{ localStorage.removeItem(k); }catch(e){} });
+    forgetLogin(''); state.pos={}; state.aims={}; applyData({watch:[],pos:{},active:''}); authMsg('로그아웃했습니다. 다시 구글로 로그인하면 종목과 매수 기록이 돌아옵니다.');
+  });
+}
+$('#authBtn').addEventListener('click',function(){ var p=$('#authPanel'); p.classList.toggle('open'); if(p.classList.contains('open')) googleSetup(); });
+$('#authLogout').addEventListener('click',doLogout);
+paintAuth();
+
 /* ---------- 매수 기록 · 수익률 (매입가=1주당 원화 가격 × 수량, 해외주식은 현재 환율 반영) ---------- */
 var POS_KEY='sd_pos';
 state.pos={}; state.fxNow={};
 try{ var _p=JSON.parse(lsGet(POS_KEY)||'{}'); if(_p&&typeof _p==='object'&&!Array.isArray(_p)) state.pos=_p; }catch(e){}
-function savePos(){ lsSet(POS_KEY, JSON.stringify(state.pos)); }
+function savePos(){ lsSet(POS_KEY, JSON.stringify(state.pos)); queueSync(); }
 function todayStr(){ var d=new Date(Date.now()+9*3600*1000); return d.toISOString().slice(0,10); }
 function parseAmt(v){ var n=parseFloat(String(v||'').replace(/[^0-9.]/g,'')); return isFinite(n)&&n>0?n:null; }
 function won(v){ return isNum(v)?nf(Math.round(v),0)+'원':'–'; }
@@ -814,12 +972,18 @@ function renderPosition(rep){
   box.innerHTML='<div class="card">'+h+'</div>';
 }
 
-function ensureFxNow(rep){
-  var ccy=rep.stock.currency; if(!isFor(ccy)||isNum(state.fxNow[ccy])) return;
+var FX_KEY='sd_fx', fxTried={};
+try{ var _fx=JSON.parse(lsGet(FX_KEY)||'{}'); if(_fx&&typeof _fx==='object') Object.keys(_fx).forEach(function(k){ if(isNum(_fx[k])) state.fxNow[k]=_fx[k]; }); }catch(e){}
+function ensureFx(ccy){
+  if(!isFor(ccy)||fxTried[ccy]) return; fxTried[ccy]=1;
   fetch('/api/price?symbol='+encodeURIComponent(fxPair(ccy))+'&date='+todayStr()).then(function(r){ return r.json(); }).then(function(j){
-    if(isNum(j.close)){ state.fxNow[ccy]=j.close; renderPosition(rep); renderList(); }
-  }).catch(function(){});
+    if(!isNum(j.close)){ delete fxTried[ccy]; return; }
+    state.fxNow[ccy]=j.close; lsSet(FX_KEY, JSON.stringify(state.fxNow));
+    var rep=state.reports[state.active]; if(rep) renderPosition(rep);
+    renderList();
+  }).catch(function(){ delete fxTried[ccy]; });
 }
+function ensureFxNow(rep){ ensureFx(rep.stock.currency); }
 function resolvePending(rep){ ensureFxNow(rep); }
 function addLot(rep){
   var err=$('#posErr'), date=$('#posDate').value, px=parseAmt($('#posAmt').value), qty=parseAmt($('#posUnit').value);
@@ -838,10 +1002,69 @@ function addLot(rep){
   renderPosition(rep); renderList();
 }
 
+/* ---------- 매수 에임가 (서버 KV에 저장, 5분마다 확인해 도달하면 슬랙 알림) ---------- */
+var AIM_KEY='sd_aim';
+state.aims={}; state.aimServer=null; state.aimErr=''; state.slackOn=null;
+try{ var _a=JSON.parse(lsGet(AIM_KEY)||'{}'); if(_a&&typeof _a==='object'&&!Array.isArray(_a)) state.aims=_a; }catch(e){}
+function saveAimCache(){ lsSet(AIM_KEY, JSON.stringify(state.aims)); }
+function aimFetch(path,opt){
+  opt=opt||{}; opt.headers=Object.assign({'content-type':'application/json','x-access-code':getCode()},authHeaders(),opt.headers||{});
+  return fetch(path,opt).then(function(r){ return r.json().then(function(j){ return {status:r.status,j:j}; },function(){ return {status:r.status,j:{}}; }); });
+}
+function aimStatus(sym,s){
+  var a=state.aims[sym]; if(!a||!s||!isNum(s.price)) return null;
+  var hit=a.dir==='down'?s.price<=a.aim:s.price>=a.aim;
+  return { a:a, remain:(a.aim/s.price-1)*100, reached:!!a.alertedAt||hit, sent:!!a.alertedAt };
+}
+function loadAims(){
+  if(!authToken()){ state.aimServer=false; state.aimErr='로그인이 필요합니다. 오른쪽 위 "구글 로그인"에서 로그인하면 슬랙 알림을 쓸 수 있습니다.'; renderList(); var r0=state.reports[state.active]; if(r0) renderAim(r0); return Promise.resolve(); }
+  return aimFetch('/api/aim').then(function(x){
+    if(x.status===200&&x.j.ok){
+      var m={}; (x.j.items||[]).forEach(function(i){ m[i.symbol]=i; });
+      state.aims=m; state.slackOn=!!x.j.slack; state.aimServer=true; state.aimErr=''; saveAimCache();
+    } else { state.aimServer=false; state.aimErr=(x.status===401?'로그인이 필요합니다. 오른쪽 위 "구글 로그인"에서 로그인하면 슬랙 알림을 쓸 수 있습니다.':(x.j.error||'알림 서버에 연결하지 못했습니다.')); }
+  }).catch(function(){ state.aimServer=false; state.aimErr='알림 서버에 연결하지 못했습니다.'; })
+  .then(function(){ renderList(); var rep=state.reports[state.active]; if(rep) renderAim(rep); });
+}
+function hhmm(t){ var d=new Date(t+9*3600*1000); return (d.getUTCMonth()+1)+'/'+d.getUTCDate()+' '+('0'+d.getUTCHours()).slice(-2)+':'+('0'+d.getUTCMinutes()).slice(-2); }
+function renderAim(rep){
+  var box=$('#box-aim'); if(!box||!isActive(rep)) return;
+  var s=rep.stock, cur=s.currency, sym=s.symbol, st=aimStatus(sym,s), h='';
+  var keep=($('#aimPx')||{}).value||'';
+  h+='<div class="aim-st"><span class="muted">현재가 <b class="num" style="color:var(--ink)">'+money(s.price,cur)+'</b></span>';
+  if(st){
+    h+='<span>에임가 <b class="num">'+money(st.a.aim,cur)+'</b></span>'+
+      (st.reached?'<span class="pill good">🎯 에임가 도달'+(st.sent?' · 슬랙 발송 '+hhmm(st.a.alertedAt):'')+'</span>'
+        :'<span class="pill aim">'+(st.a.dir==='down'?'앞으로 ':'앞으로 ')+signed(st.remain,2)+'% '+(st.a.dir==='down'?'내려오면 알림':'올라가면 알림')+'</span>');
+  } else h+='<span class="muted">아직 에임가가 없습니다.</span>';
+  h+='</div>';
+  h+='<form class="pos-form" id="aimForm" novalidate style="margin-top:0"><label>매수 에임가 ('+esc(cur||'')+')<input type="text" inputmode="decimal" id="aimPx" placeholder="예: '+(cur==='KRW'?nf(Math.round(s.price*0.9),0):nf(s.price*0.9,2))+'" value="'+esc(keep)+'"></label><button class="btn" type="submit">'+(st?'에임가 변경':'에임가 설정')+'</button></form><div id="aimErr"></div>';
+  h+='<div class="aim-acts">'+(st?'<button class="btn ghost" type="button" data-act="aimdel">에임가 해제</button>':'')+'<button class="btn ghost" type="button" data-act="aimtest">슬랙 테스트 메시지 보내기</button></div>';
+  if(state.aimServer===false) h+='<div class="aim-warn">⚠ '+esc(state.aimErr||'알림 서버에 연결하지 못했습니다.')+' 이 상태에서는 목록의 남은 % 표시만 되고, 슬랙 알림은 가지 않습니다.</div>';
+  else if(state.slackOn===false) h+='<div class="aim-warn">⚠ 슬랙 연결(SLACK_BOT_TOKEN)이 아직 설정되지 않아 도달해도 알림이 가지 않습니다.</div>';
+  h+='<p class="muted small" style="margin:12px 0 0">서버가 5분마다 현재가를 확인합니다. 에임가에 닿으면 슬랙으로 한 번 알리고, 이 화면을 닫아 두어도 동작합니다. 에임가를 다시 설정하면 알림이 다시 켜집니다. 장이 열려 있을 때만 가격이 바뀝니다.</p>';
+  box.innerHTML='<div class="card">'+h+'</div>';
+}
+function setAim(rep){
+  var err=$('#aimErr'), v=parseAmt($('#aimPx').value), s=rep.stock;
+  if(!v){ err.innerHTML='<div class="err">에임가를 숫자로 입력해 주세요.</div>'; return; }
+  var btn=document.querySelector('#aimForm .btn'); btn.disabled=true;
+  aimFetch('/api/aim',{method:'POST',body:JSON.stringify({symbol:s.symbol,name:s.name,currency:s.currency,aim:v,price:s.price})}).then(function(x){
+    if(x.status===200&&x.j.ok){ state.aims[s.symbol]=x.j.item; state.aimServer=true; state.aimErr=''; }
+    else {
+      state.aims[s.symbol]={symbol:s.symbol,name:s.name,currency:s.currency,aim:v,dir:v<=s.price?'down':'up',alertedAt:null,local:true};
+      state.aimServer=false; state.aimErr=x.status===401?'로그인이 필요합니다. 오른쪽 위 "구글 로그인"에서 로그인하면 슬랙 알림을 쓸 수 있습니다.':(x.j.error||'알림 서버에 저장하지 못했습니다.');
+    }
+    saveAimCache(); $('#aimPx').value=''; renderAim(rep); renderList();
+  }).catch(function(){ btn.disabled=false; err.innerHTML='<div class="err">저장하지 못했습니다. 잠시 후 다시 시도해 주세요.</div>'; });
+}
+
 function rowHtml(sym,i){
   var r=state.reports[sym], s=r&&r.stock, on=sym===state.active;
   var myPill='';
-  if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price,s.currency); if(pt.ret!=null) myPill='<span class="pill '+(pt.ret>0?'good':pt.ret<0?'bad':'neutral')+'">내 수익 '+signed(pt.ret,1)+'%</span>'; }
+  if(s&&(state.pos[sym]||[]).length){ var pt=calcPos(sym,s.price,s.currency); if(pt.ret!=null&&pt.cost) myPill='<span class="pill '+(pt.ret>0?'good':pt.ret<0?'bad':'neutral')+'" title="내 수익률과 수익금액">내 수익 '+signed(pt.ret,2)+'% · '+swon(pt.pl)+'</span>'; }
+  var aimPill='', ai=s?aimStatus(sym,s):null;
+  if(ai) aimPill=ai.reached?'<span class="pill good" title="매수 에임가 도달">🎯 에임가 도달</span>':'<span class="pill aim" title="매수 에임가 '+esc(money(ai.a.aim,s.currency))+'">🎯 에임가까지 '+signed(ai.remain,1)+'%</span>';
   var code=sym.replace(/\.(KS|KQ)$/,'');
   var busy=r&&(PARTS.some(function(p){ return r.status[p]==='loading'; })||r.cStatus==='loading');
   var closes=s?s.rows.slice(-40).map(function(x){ return x.c; }):[];
@@ -855,17 +1078,25 @@ function rowHtml(sym,i){
       '<span class="srow-id"><b>'+esc(code)+'</b><span class="srow-name">'+esc(s?s.name:'불러오는 중…')+'</span></span>'+
       '<span class="srow-px num">'+(s?money(s.price,s.currency):'–')+'</span>'+
       '<span class="srow-chg num '+(s?dir(s.changePct):'flat')+'">'+(s?arrow(s.changePct)+' '+signed(s.changePct,2)+'%':'')+'</span>'+
-      '<span class="srow-chips">'+myPill+(bias?'<span class="pill '+biasCls+'">차트 '+esc(bias)+'</span>':'')+stance+(busy?'<span class="pulse sm" title="분석 중"></span>':'')+'</span>'+
+      '<span class="srow-chips">'+aimPill+myPill+(bias?'<span class="pill '+biasCls+'">차트 '+esc(bias)+'</span>':'')+stance+(busy?'<span class="pulse sm" title="분석 중"></span>':'')+'</span>'+
       '<span class="srow-spark">'+(closes.length?sparkline(closes, s&&s.changePct<0?'var(--down)':'var(--up)'):'')+'</span>'+
       '<span class="chev" aria-hidden="true">'+(on?'▴':'▾')+'</span>'+
     '</button>'+
+    '<a class="srow-tv" href="'+esc(tvUrl(sym))+'" target="_blank" rel="noopener noreferrer" title="트레이딩뷰 차트로 이동" aria-label="'+esc(code)+' 트레이딩뷰 차트 열기">차트 ↗</a>'+
     '<button type="button" class="srow-x" data-act="close" data-sym="'+esc(sym)+'" aria-label="'+esc(code)+' 삭제">×</button></div>'+
     '<div class="slot" data-slot="'+esc(sym)+'"></div></div>';
 }
 
+function syncFloat(){
+  var b=$('#floatClose'), sym=state.active;
+  if(!sym||!state.reports[sym]){ b.hidden=true; return; }
+  b.textContent='✕  '+sym.replace(/\.(KS|KQ)$/,'')+' 닫기'; b.hidden=false;
+}
 function renderList(){
   var list=$('#list'), rep=$('#report'), holder=$('#holder');
   holder.appendChild(rep);
+  state.order.forEach(function(sym){ var r=state.reports[sym]; if(r&&(state.pos[sym]||[]).length) ensureFx(r.stock.currency); });
+  syncFloat();
   if(!state.order.length){
     list.innerHTML='<div class="card empty">아직 추가한 종목이 없습니다. 위 입력창에 종목 코드를 넣어 보세요.</div>';
     return;
@@ -915,7 +1146,7 @@ function show(sym){
   renderIndicators(s); drawChart(s, rep.status.outlook==='ok'?rep.ai.outlook:null);
   PARTS.forEach(function(p){ paintPart(rep,p); });
   paintConclusion(rep);
-  renderPosition(rep); resolvePending(rep);
+  renderAim(rep); renderPosition(rep); resolvePending(rep);
 }
 
 function basePayload(s){ return {symbol:s.symbol,name:s.name,currency:s.currency}; }
@@ -1047,6 +1278,7 @@ function restoreWatch(){
   saved=saved.filter(function(x){ return typeof x==='string'; }).slice(0,MAX_TABS);
   var want=lsGet(ACTIVE_KEY);
   Promise.all(saved.map(function(sym){ return fetchStock(sym).then(function(s){ return s; }, function(){ return null; }); })).then(function(list){
+    state.missing=saved.filter(function(sym,i){ return !list[i]; }); // 일시적으로 못 불러온 종목은 서버 목록에서 지우지 않는다
     list.forEach(function(s){ if(s && !state.reports[s.symbol]){ state.reports[s.symbol]=newReport(s); state.order.push(s.symbol); } });
     if(!state.order.length) return;
     if(want && state.reports[want]) show(want); else renderList();
@@ -1061,6 +1293,18 @@ document.addEventListener('click', function(ev){
   if(act==='tab'){ if(state.active===el.dataset.sym){ collapse(); } else { show(el.dataset.sym); var sl=document.querySelector('.srow.on'); if(sl) sl.scrollIntoView({behavior:'smooth',block:'nearest'}); } return; }
   if(act==='close'){ closeTab(el.dataset.sym); return; }
   if(!rep) return;
+  if(act==='aimdel'){
+    var as=rep.stock.symbol; delete state.aims[as]; saveAimCache(); renderAim(rep); renderList();
+    aimFetch('/api/aim?symbol='+encodeURIComponent(as),{method:'DELETE'}).catch(function(){}); return;
+  }
+  if(act==='aimtest'){
+    var eb=$('#aimErr'); el.disabled=true; eb.innerHTML='<p class="muted small">보내는 중…</p>';
+    aimFetch('/api/aim-test',{method:'POST',body:'{}'}).then(function(x){
+      el.disabled=false;
+      eb.innerHTML=(x.status===200&&x.j.ok)?'<p class="small" style="margin-top:10px">✅ 슬랙으로 테스트 메시지를 보냈습니다. 슬랙에서 확인해 주세요.</p>':'<div class="err">'+esc(x.status===401?'로그인이 필요합니다.':(x.j.error||'보내지 못했습니다.'))+'</div>';
+    }).catch(function(){ el.disabled=false; eb.innerHTML='<div class="err">보내지 못했습니다.</div>'; });
+    return;
+  }
   if(act==='lotdel'){
     var sy=rep.stock.symbol; state.pos[sy]=(state.pos[sy]||[]).filter(function(l){ return l.id!==el.dataset.id; });
     if(!state.pos[sy].length) delete state.pos[sy];
@@ -1073,8 +1317,21 @@ document.addEventListener('click', function(ev){
     runPart(part,rep).then(function(){ if(state.reports[rep.stock.symbol]===rep && allSettled(rep)) runConclusion(rep); });
   }
 });
+function closeActive(){
+  var sym=state.active; if(!sym) return;
+  collapse();
+  var row=[].slice.call(document.querySelectorAll('.srow-drag')).filter(function(x){ return x.getAttribute('data-sym')===sym; })[0];
+  if(row){ var rr=row.closest('.srow'); if(rr) rr.scrollIntoView({behavior:'smooth',block:'center'}); }
+}
+$('#floatClose').addEventListener('click', closeActive);
+document.addEventListener('keydown', function(ev){
+  if(ev.key!=='Escape'||!state.active) return;
+  var t=ev.target&&ev.target.tagName; if(t==='INPUT'||t==='TEXTAREA'||t==='SELECT') return;
+  closeActive();
+});
 $('#form').addEventListener('submit', function(ev){ ev.preventDefault(); analyze($('#sym').value); });
 document.addEventListener('submit', function(ev){
+  if(ev.target&&ev.target.id==='aimForm'){ ev.preventDefault(); var ar=state.reports[state.active]; if(ar) setAim(ar); return; }
   if(ev.target&&ev.target.id==='posForm'){ ev.preventDefault(); var rep=state.reports[state.active]; if(rep) addLot(rep); }
 });
 
@@ -1086,26 +1343,33 @@ function moveSym(sym, to){
 document.addEventListener('pointerdown', function(ev){
   var h=ev.target.closest&&ev.target.closest('.srow-drag'); if(!h||(ev.button!==undefined&&ev.button>0)) return;
   ev.preventDefault();
-  var row=h.closest('.srow'), sym=h.getAttribute('data-sym');
-  var rows=[].slice.call(document.querySelectorAll('#list .srow')), idx=rows.indexOf(row), target=idx, startY=ev.clientY;
-  var others=rows.filter(function(r){ return r!==row; });
-  row.classList.add('dragging');
-  try{ h.setPointerCapture(ev.pointerId); }catch(e){}
-  function mv(e){
-    row.style.transform='translateY('+(e.clientY-startY)+'px)';
-    var t=0; others.forEach(function(r){ var b=r.getBoundingClientRect(); if(e.clientY>b.top+b.height/2) t++; });
-    target=t;
-    others.forEach(function(r){ r.classList.remove('dropbefore','dropafter'); });
-    if(others.length){ if(t<others.length) others[t].classList.add('dropbefore'); else others[others.length-1].classList.add('dropafter'); }
-    if(e.clientY<70) window.scrollBy(0,-14); else if(e.clientY>window.innerHeight-70) window.scrollBy(0,14);
+  var row=h.closest('.srow'), sym=h.getAttribute('data-sym'), list=$('#list'), from=state.order.indexOf(sym);
+  row.classList.add('dragging');                       // 열려 있던 상세는 끌 동안 접어 둔다
+  var r=row.getBoundingClientRect(), offY=ev.clientY-r.top, lastY=ev.clientY, raf=0;
+  var ph=document.createElement('div'); ph.className='srow-ph'; ph.style.height=r.height+'px';
+  list.insertBefore(ph,row);
+  row.style.cssText='position:fixed;left:'+r.left+'px;top:'+r.top+'px;width:'+r.width+'px;margin:0;z-index:70;pointer-events:none';
+  document.body.classList.add('is-dragging');
+  function place(){
+    var rows=[].slice.call(list.querySelectorAll('.srow')).filter(function(x){ return x!==row; }), ref=null, i;
+    for(i=0;i<rows.length;i++){ var b=rows[i].getBoundingClientRect(); if(lastY<b.top+b.height/2){ ref=rows[i]; break; } }
+    if(ref){ if(ph.nextSibling!==ref) list.insertBefore(ph,ref); } else if(list.lastElementChild!==ph) list.appendChild(ph);
   }
+  function frame(){
+    row.style.top=(lastY-offY)+'px';
+    if(lastY<80) window.scrollBy(0,-Math.min(22,(80-lastY)/3+4)); else if(lastY>window.innerHeight-80) window.scrollBy(0,Math.min(22,(lastY-(window.innerHeight-80))/3+4));
+    place(); raf=requestAnimationFrame(frame);
+  }
+  function mv(e){ lastY=e.clientY; }
   function up(){
-    h.removeEventListener('pointermove',mv); h.removeEventListener('pointerup',up); h.removeEventListener('pointercancel',up);
-    row.style.transform=''; row.classList.remove('dragging');
-    others.forEach(function(r){ r.classList.remove('dropbefore','dropafter'); });
-    if(target!==idx) moveSym(sym,target);
+    cancelAnimationFrame(raf);
+    window.removeEventListener('pointermove',mv); window.removeEventListener('pointerup',up); window.removeEventListener('pointercancel',up);
+    var rows=[].slice.call(list.querySelectorAll('.srow,.srow-ph')).filter(function(x){ return x!==row; }), to=rows.indexOf(ph);
+    ph.remove(); row.style.cssText=''; row.classList.remove('dragging'); document.body.classList.remove('is-dragging');
+    if(to>=0&&to!==from) moveSym(sym,to); else renderList();
   }
-  h.addEventListener('pointermove',mv); h.addEventListener('pointerup',up); h.addEventListener('pointercancel',up);
+  window.addEventListener('pointermove',mv); window.addEventListener('pointerup',up); window.addEventListener('pointercancel',up);
+  raf=requestAnimationFrame(frame);
 });
 document.addEventListener('keydown', function(ev){
   var h=ev.target.closest&&ev.target.closest('.srow-drag'); if(!h) return;
@@ -1117,7 +1381,7 @@ document.addEventListener('keydown', function(ev){
 });
 
 renderList();
-restoreWatch();
+if(authToken()&&authUser){ syncStat('불러오는 중…'); pullServer(false); } else { restoreWatch(); loadAims(); }
 loadMarket();
 })();
 </script>

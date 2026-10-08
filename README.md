@@ -10,26 +10,24 @@ functions/api/market.js    공포탐욕지수(CNN) + 지수 4개 시세·RSI(Yah
 functions/api/stock.js     종목 시세·일봉·기술적 지표·지지/저항·2주 변동폭
 functions/api/analyze.js   Claude + 웹 검색: 기업요약 / 뉴스 / 전망·애널리스트 / 결론
 functions/_lib/util.js     공용 함수
-wrangler.toml              Cloudflare Pages 설정
+worker.js / wrangler.toml     Cloudflare Workers 진입점과 설정
 ```
 
-## 배포 (클라우드플레어 Pages)
+## 배포 (클라우드플레어 Workers)
 
-1. 이 폴더를 GitHub 저장소로 올립니다.
-2. Cloudflare 대시보드 → Workers & Pages → Create → Pages → Connect to Git 에서 저장소를 고릅니다.
-3. 빌드 설정: Framework preset `None`, Build command 비움, Build output directory `public`
-4. Settings → Variables and Secrets 에 아래 값을 추가합니다.
+1. 이 폴더를 GitHub 저장소로 올립니다. (`worker.js`, `wrangler.toml`, `public/`, `functions/` 모두)
+2. Cloudflare → Workers & Pages → Create → Import a repository 로 저장소를 연결합니다. 빌드 설정은 기본값(Deploy command `npx wrangler deploy`)을 그대로 씁니다.
+3. 배포가 끝나면 `https://stock-desk.<계정>.workers.dev` 주소가 열립니다. (Settings → Domains & Routes 에서 workers.dev가 켜져 있는지 확인)
+4. Settings → Variables and secrets 에 아래 값을 추가하고 저장하면 바로 적용됩니다.
 
 | 이름 | 필수 | 설명 |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | 필수 | console.anthropic.com 에서 발급한 API 키 (Secret으로 저장) |
 | `ACCESS_CODE` | 강력 권장 | 아무 문자열. 설정하면 AI 분석 호출에 이 코드가 필요해 남이 내 API 비용을 쓰지 못합니다. 화면 오른쪽 위 "접근 코드"에 같은 값을 입력하세요. |
 | `ANTHROPIC_MODEL` | 선택 | 기본값 `claude-sonnet-5-5` |
-| `WEB_SEARCH_TOOL` | 선택 | 기본값 `web_search_20250305`. 계정에서 다른 버전을 쓰라는 오류가 나면 이 값을 바꿉니다. |
+| `WEB_SEARCH_TOOL` | 선택 | 기본값 `web_search_20250305` |
 
-5. 변수를 저장한 뒤 다시 배포(Retry deployment)합니다.
-
-로컬 테스트: `npx wrangler pages dev public` (같은 변수는 `.dev.vars` 파일에 `KEY=value` 로 적습니다.)
+로컬 테스트: `npx wrangler dev` (변수는 `.dev.vars` 파일에 `KEY=value` 로 적습니다.)
 
 ## 사용법
 
@@ -44,4 +42,22 @@ wrangler.toml              Cloudflare Pages 설정
 - 종목 한 번 분석에 웹 검색이 포함된 Claude 호출이 4번 일어납니다. 사용량은 Anthropic 콘솔에서 확인하세요.
 - 투자 권유가 아닌 참고 자료입니다.
 
-- 글자하나
+## 매수 에임가 + 슬랙 알림
+
+종목을 열면 "매수 에임가" 칸에서 목표 가격을 정할 수 있고, 종목 목록에 "에임가까지 -x%"가 표시됩니다. 서버가 5분마다 현재가를 확인해 에임가에 닿으면 슬랙 `#매수에임알람`으로 한 번 알립니다.
+
+- 저장소: Workers KV (`wrangler.toml`의 `ALERTS`). 배포 때 자동으로 만들어집니다.
+- 알림(봇 방식, 권장): 슬랙 앱에 `chat:write` 권한을 주고 `#매수에임알람`에 봇을 초대한 뒤, Cloudflare Settings → Variables and secrets 에 `SLACK_BOT_TOKEN`(xoxb-…, Secret)을 추가합니다. 모바일 푸시를 확실히 받으려면 `SLACK_MENTION_USER`(내 멤버 ID)도 넣습니다. 다른 채널은 `SLACK_CHANNEL`로 지정합니다. 웹훅 방식(`SLACK_WEBHOOK_URL`)도 지원하지만 봇 토큰이 있으면 봇이 우선입니다.
+- 확인: `/api/health` 에서 `hasKv`, `hasSlack` 이 true 인지, 화면의 "슬랙 테스트 메시지 보내기"로 점검합니다.
+
+## 구글 계정 로그인 (데이터 보존)
+
+오른쪽 위 "구글 로그인"으로 로그인하면 종목 목록, 순서, 매수 기록, 에임가가 서버(Workers KV)에 저장됩니다. 브라우저 데이터를 지워도 다시 로그인하면 그대로 돌아오고, 다른 기기에서도 같은 데이터를 봅니다.
+
+설정 (한 번만):
+1. Google Cloud Console → APIs & Services → Credentials → Create credentials → OAuth client ID → Web application.
+2. Authorized JavaScript origins 에 `https://stock-desk.<계정>.workers.dev` 추가 (Redirect URI는 비워도 됩니다). OAuth 동의 화면을 먼저 설정하고 본인 이메일을 테스트 사용자로 추가하거나 게시합니다.
+3. Cloudflare Variables 에 `GOOGLE_CLIENT_ID` (발급된 클라이언트 ID), 선택으로 `ALLOWED_EMAILS` (쉼표로 구분한 허용 구글 이메일) 추가.
+
+- `ALLOWED_EMAILS`를 넣으면 그 구글 계정만 로그인할 수 있습니다. 없으면 `ACCESS_CODE`를 아는 사람만 처음 로그인할 수 있습니다.
+- 이미 이 기기에 있던 종목·매수 기록은 처음 로그인할 때 서버로 올라갑니다.
