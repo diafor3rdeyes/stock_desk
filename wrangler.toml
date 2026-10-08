@@ -12,9 +12,10 @@ binding = "ASSETS"
 [version_metadata]
 binding = "CF_VERSION_METADATA"
 
-# 매수 에임가 저장소(KV). id를 비워 두면 배포할 때 자동으로 만들어 연결됩니다.
+# 매수 에임가 저장소(KV). id를 고정해 두어, 배포해도 저장소가 바뀌지 않습니다.
 [[kv_namespaces]]
 binding = "ALERTS"
+id = "31b0c57ffb8a4e6da22bb5f4ec51703c"
 
 # 5분마다 에임가 도달 여부 확인 → 슬랙 알림
 [triggers]
