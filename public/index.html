@@ -394,6 +394,50 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
 @media (min-width:641px) and (max-width:1260px){
   .srow-btn{grid-template-columns:150px 88px 78px auto}
 }
+
+/* ===== 모바일(폰) 레이아웃 정리 ===== */
+@media (max-width:640px){
+  .top{position:static}
+  .bar{padding-block:10px 8px;gap:8px}
+  .brand{font-size:21px}
+  .bar-r{width:100%;flex-wrap:nowrap;overflow-x:auto;gap:6px;padding-bottom:2px;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .bar-r::-webkit-scrollbar{display:none}
+  .pnav{gap:6px;flex:none}
+  .pnav a,.codebtn{padding:6px 12px;font-size:13px;flex:none}
+  .main{gap:22px;padding-block:16px 40px}
+  /* 시장 현황: 세로로 쌓고 지수는 2열 */
+  #market .market{grid-template-columns:minmax(0,1fr)}
+  #market .idx-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+  #market .card{padding:12px}
+  #market .idx-name{font-size:13px;line-height:1.3}
+  #market .idx-price{font-size:18px}
+  #market .idx-chg{font-size:12px}
+  #market .rsi-top{font-size:11px;flex-wrap:wrap;gap:2px 6px}
+  /* 종목 입력 */
+  .filterbar{margin:14px 0 14px}
+  /* 종목 행: 왼쪽 순위 + 오른쪽 3x3 버튼판 */
+  .srow-head{display:grid;grid-template-columns:40px minmax(0,1fr) minmax(0,1fr) minmax(0,1.3fr);align-items:stretch}
+  .srow-drag{grid-column:1;grid-row:1/4;width:auto;border-radius:19px 0 0 19px;padding:0}
+  .srow-drag .rank{font-size:17px}
+  .srow-btn{grid-column:2/5;grid-row:1;min-width:0;padding:12px 12px 10px;flex:none}
+  .srow-head>.srow-reg,.srow-head>a.srow-tv,.srow-head>.srow-x,.srow-sellcol{grid-column:auto;grid-row:auto;min-width:0;width:auto;min-height:58px;border-top:1px solid var(--line);border-left:1px solid var(--line);padding:6px 2px;flex:none;justify-content:center}
+  .srow-sellcol{padding:0;display:flex;flex-direction:column}
+  .srow-sellcol .srow-reg{border:0;min-height:0;flex:1 1 auto;padding:6px 2px}
+  .srow-sellcol .srow-reg[data-act=sold]{border-top:1px solid var(--line);background:var(--surface2);flex:none;min-height:34px}
+  .srow-reg .rl{display:inline}
+  .srow-reg{font-size:12.5px}
+  .srow-reg .reg-t{font-size:12.5px;font-weight:800;white-space:nowrap}
+  .reg-pl{font-size:11px}
+  .reg-pl .amt{display:inline}
+  .reg-pl2{display:block;font-size:10.5px}
+  .srow-head>.srow-x{font-size:20px;padding:0}
+  .srow-head>a.srow-tv{font-size:12.5px}
+  .srow-name{font-size:17px}
+  .srow-px{font-size:16px}
+  .srow-reg{overflow:hidden}
+  .srow-sellcol .reg-pl{font-size:10.5px;white-space:normal;text-align:center;line-height:1.3}
+  .sec-title{flex-direction:column;align-items:flex-start;gap:4px}
+}
 </style>
 </head>
 <body>
@@ -437,7 +481,7 @@ body[data-view=rec] #market,body[data-view=rec] #watch{display:none}
   <section id="watch" class="lookup" aria-label="내 종목">
     <div class="sec-title"><h2>내 종목</h2><span class="meta">종목을 누르면 바로 아래에 분석이 펼쳐집니다</span></div>
     <form id="form" autocomplete="off">
-      <input id="sym" name="sym" inputmode="latin" placeholder="종목 코드 (예: NVDA, AAPL, 005930)  쉼표로 여러 개 가능" aria-label="종목 코드" maxlength="120">
+      <input id="sym" name="sym" inputmode="latin" placeholder="종목 코드 (NVDA, 005930)" aria-label="종목 코드" maxlength="120">
       <button class="btn" id="go" type="submit">종목 추가</button>
     </form>
     <div id="formErr"></div>
@@ -566,7 +610,8 @@ function renderMarket(d){
 }
 
 function loadMarket(){
-  fetch('/api/market').then(function(r){ if(!r.ok) throw new Error('서버 응답 '+r.status); return r.json(); }).then(renderMarket).catch(function(e){
+  try{ var mc=JSON.parse(lsGet('sd_market')||'null'); if(mc&&mc.fearGreed!==undefined||mc&&mc.indices) renderMarket(mc); }catch(e){}
+  fetch('/api/market').then(function(r){ if(!r.ok) throw new Error('서버 응답 '+r.status); return r.json(); }).then(function(j){ try{ lsSet('sd_market',JSON.stringify(j)); }catch(e){} renderMarket(j); }).catch(function(e){ if($('#marketBody').children.length&&lsGet('sd_market')) return;
     $('#marketBody').innerHTML = '<div class="card"><p class="muted">시장 데이터를 불러오지 못했습니다 ('+esc(e.message||'')+'). 잠시 후 새로고침해 주세요.</p></div>';
   });
 }
@@ -1548,9 +1593,18 @@ function closeTab(sym){
   saveWatch(); renderList();
 }
 
+var STK_CACHE='sd_stk_cache';
+function stkCacheLoad(){ try{ var c=JSON.parse(lsGet(STK_CACHE)||'{}'); return (c&&typeof c==='object')?c:{}; }catch(e){ return {}; } }
+function stkCachePut(input,j){
+  try{
+    var c=stkCacheLoad(); delete c[input]; c[input]=j;
+    var keys=Object.keys(c); while(keys.length>MAX_TABS+2){ delete c[keys.shift()]; }
+    lsSet(STK_CACHE,JSON.stringify(c));
+  }catch(e){ try{ localStorage.removeItem(STK_CACHE); }catch(e2){} }
+}
 function fetchStock(input){
   return fetch('/api/stock?symbol='+encodeURIComponent(input)).then(function(r){
-    return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||'조회 실패'); return j; });
+    return r.json().then(function(j){ if(!r.ok) throw new Error(j.error||'조회 실패'); stkCachePut(j.symbol||input,j); return j; });
   });
 }
 
@@ -1604,11 +1658,23 @@ function restoreWatch(){
   saved=saved.filter(function(x){ return typeof x==='string'; }).slice(0,MAX_TABS);
   var want=lsGet(ACTIVE_KEY);
   state.missing=saved.slice(); // 불러오는 동안에도 서버로 보내는 목록이 비지 않게 한다 (전부 불러온 뒤 실제 실패분만 남김)
+  // 1) 지난번에 받아 둔 시세로 목록을 먼저 바로 보여준다 (앱을 열자마자 보이게)
+  var cache=stkCacheLoad(), fromCache={}, painted=false;
+  saved.forEach(function(sym){ var c=cache[sym]; if(c&&c.symbol&&!state.reports[c.symbol]){ state.reports[c.symbol]=newReport(c); state.order.push(c.symbol); fromCache[c.symbol]=1; painted=true; } });
+  if(painted){ if(want && state.reports[want]) show(want); else renderList(); }
+  // 2) 최신 시세를 받아 갱신한다
   Promise.all(saved.map(function(sym){ return fetchStock(sym).then(function(s){ return s; }, function(){ return null; }); })).then(function(list){
     state.missing=saved.filter(function(sym,i){ return !list[i]; }); // 일시적으로 못 불러온 종목은 서버 목록에서 지우지 않는다
-    list.forEach(function(s){ if(s && !state.reports[s.symbol]){ state.reports[s.symbol]=newReport(s); state.order.push(s.symbol); } });
+    var activeFresh=false;
+    list.forEach(function(s){
+      if(!s) return;
+      var cur=state.reports[s.symbol];
+      if(cur){ if(fromCache[s.symbol]){ cur.stock=s; if(state.active===s.symbol) activeFresh=true; } }
+      else { state.reports[s.symbol]=newReport(s); state.order.push(s.symbol); }
+    });
     if(!state.order.length) return;
-    if(want && state.reports[want]) show(want); else renderList();
+    if(!painted){ if(want && state.reports[want]) show(want); else renderList(); }
+    else { renderList(); if(activeFresh && state.reports[state.active] && !PARTS.some(function(p){ return state.reports[state.active].status[p]==='loading'; })) show(state.active); }
   });
 }
 
