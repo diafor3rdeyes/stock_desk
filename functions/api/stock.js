@@ -44,9 +44,26 @@ export async function onRequestGet({ request }) {
   }
 
   const { meta, rows, symbol } = found;
-  const tech = computeTech(rows);
   const n = rows.length;
-  const prev = n > 1 ? rows[n - 2].c : meta.chartPreviousClose;
+  // 일봉의 마지막 값이 어제 종가에 머물러 있을 수 있어서, Yahoo의 '현재가(regularMarketPrice)'를 우선 사용한다.
+  let prev = n > 1 ? rows[n - 2].c : meta.chartPreviousClose;
+  let livePrice = rows[n - 1].c;
+  let asOf = rows[n - 1].t;
+  const lp = meta.regularMarketPrice, lt = meta.regularMarketTime;
+  if (Number.isFinite(lp) && lp > 0 && Number.isFinite(lt)) {
+    const off = meta.gmtoffset || 0;
+    const sameDay = Math.floor((lt + off) / 86400) === Math.floor((rows[n - 1].t + off) / 86400);
+    if (sameDay) {
+      rows[n - 1].c = lp;
+      livePrice = lp;
+      asOf = Math.max(asOf, lt);
+    } else if (lt > rows[n - 1].t) {
+      prev = rows[n - 1].c; // 마지막 일봉은 직전 거래일 종가
+      livePrice = lp;
+      asOf = lt;
+    }
+  }
+  const tech = computeTech(rows);
   const chartRows = rows.slice(-130);
   const koName = await naverKoName(symbol);
 
@@ -57,17 +74,17 @@ export async function onRequestGet({ request }) {
       name: meta.longName || meta.shortName || symbol,
       currency: meta.currency,
       exchange: meta.fullExchangeName || meta.exchangeName,
-      price: rows[n - 1].c,
+      price: livePrice,
       prevClose: prev,
-      change: rows[n - 1].c - prev,
-      changePct: (rows[n - 1].c / prev - 1) * 100,
-      asOf: rows[n - 1].t,
+      change: livePrice - prev,
+      changePct: (livePrice / prev - 1) * 100,
+      asOf,
       koName,
       rows: chartRows,
       rsiHist: rsiSeries(rows),
       tech,
     },
     200,
-    { 'cache-control': 'public, max-age=60, s-maxage=300' }
+    { 'cache-control': 'public, max-age=0, s-maxage=15' }
   );
 }

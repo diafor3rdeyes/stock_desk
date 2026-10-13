@@ -42,7 +42,7 @@ export async function yahooChart(symbol, range = '1y', interval = '1d', period =
     try {
       const r = await fetch(`https://${host}${path}`, {
         headers: { 'User-Agent': UA, Accept: 'application/json' },
-        cf: { cacheTtl: 300, cacheEverything: true },
+        cf: { cacheTtl: 20, cacheEverything: true },
       });
       if (!r.ok) throw new Error(`Yahoo ${r.status}`);
       const j = await r.json();

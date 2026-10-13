@@ -31,7 +31,30 @@ function sanitize(b) {
       if (lots.length) pos[sym] = lots;
     }
   }
-  return { watch, active, pos, updatedAt: Date.now() };
+  // 수익기록(매도 완료 기록)
+  const rec = [];
+  for (const r of (Array.isArray(b.rec) ? b.rec : []).slice(0, 300)) {
+    if (!r || typeof r !== 'object' || !SYM.test(String(r.sym || ''))) continue;
+    const sh = num(r.sh), avg = num(r.avg), sell = num(r.sell), cost = num(r.cost), val = num(r.val);
+    if (!(sh > 0) || !(sell > 0) || !(cost > 0) || val === null || val < 0) continue;
+    const lots = [];
+    for (const l of (Array.isArray(r.lots) ? r.lots : []).slice(0, 50)) {
+      const price = num(l && l.price), qty = num(l && l.qty);
+      if (price > 0 && qty > 0 && /^\d{4}-\d{2}-\d{2}$/.test(String((l && l.date) || ''))) lots.push({ id: String(l.id || randomHex(4)).slice(0, 24), k: 3, date: l.date, price, qty });
+    }
+    rec.push({
+      id: String(r.id || randomHex(6)).slice(0, 24),
+      sym: String(r.sym),
+      name: String(r.name || r.sym).slice(0, 80),
+      cur: String(r.cur || '').slice(0, 8),
+      date: /^\d{4}-\d{2}-\d{2}$/.test(String(r.date || '')) ? r.date : '',
+      avg, sell, sh, cost, val, pl: val - cost, ret: (val / cost - 1) * 100,
+      fx: num(r.fx) > 0 ? num(r.fx) : 1,
+      lots,
+      aim: num(r.aim) > 0 ? num(r.aim) : 0,
+    });
+  }
+  return { watch, active, pos, rec, updatedAt: Date.now() };
 }
 
 export async function onRequest({ request, env }) {
