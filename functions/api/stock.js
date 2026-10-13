@@ -20,6 +20,36 @@ async function naverKoName(sym) {
   return null;
 }
 
+// 네이버(m.stock.naver.com)에서 국내 종목 현재가를 받는다. 야후는 한국 시세가 약 20분 늦어서 이쪽을 우선 사용하고, 실패하면 야후 값을 쓴다.
+async function naverQuote(sym) {
+  const m = /^(\d{6})\.(KS|KQ)$/.exec(sym);
+  if (!m) return null;
+  try {
+    const ctrl = new AbortController();
+    const to = setTimeout(() => ctrl.abort(), 2500);
+    const r = await fetch(`https://m.stock.naver.com/api/stock/${m[1]}/basic`, {
+      signal: ctrl.signal,
+      headers: { 'User-Agent': 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X)', Accept: 'application/json' },
+      cf: { cacheTtl: 10, cacheEverything: true },
+    });
+    clearTimeout(to);
+    if (!r.ok) return null;
+    const j = await r.json();
+    const num = (v) => Number(String(v == null ? '' : v).replace(/[^0-9.\-]/g, ''));
+    const price = num(j.closePrice);
+    const ratio = num(j.fluctuationsRatio);
+    const absChg = Math.abs(num(j.compareToPreviousClosePrice));
+    if (!(price > 0) || !Number.isFinite(ratio) || !Number.isFinite(absChg)) return null;
+    const change = ratio < 0 ? -absChg : absChg;
+    const prev = price - change;
+    if (!(prev > 0)) return null;
+    const t = j.localTradedAt ? Date.parse(j.localTradedAt) / 1000 : NaN;
+    return { price, prev, asOf: Number.isFinite(t) ? t : Math.floor(Date.now() / 1000) };
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function onRequestGet({ request }) {
   const input = new URL(request.url).searchParams.get('symbol') || '';
   const candidates = symbolCandidates(input);
@@ -63,6 +93,16 @@ export async function onRequestGet({ request }) {
       asOf = lt;
     }
   }
+  let source = 'yahoo';
+  const nq = await naverQuote(symbol);
+  if (nq) {
+    source = 'naver';
+    livePrice = nq.price;
+    prev = nq.prev;
+    asOf = nq.asOf;
+    const kst = (t) => Math.floor((t + 9 * 3600) / 86400);
+    if (kst(rows[n - 1].t) === kst(nq.asOf)) rows[n - 1].c = nq.price; // 오늘 일봉이 이미 있으면 현재가로 맞춘다
+  }
   const tech = computeTech(rows);
   const chartRows = rows.slice(-130);
   const koName = await naverKoName(symbol);
@@ -79,6 +119,7 @@ export async function onRequestGet({ request }) {
       change: livePrice - prev,
       changePct: (livePrice / prev - 1) * 100,
       asOf,
+      source,
       koName,
       rows: chartRows,
       rsiHist: rsiSeries(rows),
